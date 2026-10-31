@@ -98,6 +98,31 @@ if (process.env.ONLY !== "fast") for (const [w, h, dpr, map, mode] of [[390, 844
   await p.done();
 }
 
+// 2b. TD-5 QA (A): every spot's 28px tap circle and the path exit cell lie inside the unobscured play rect
+// (viewport ∩ safe area, below the top HUD, above the bottom bar/sheet, left of the rail). (C): rapid taps register.
+if (process.env.ONLY !== "fast") for (const [w, h] of [[360, 640], [360, 780], [375, 667], [390, 844], [430, 932], [1024, 1024], [844, 390], [1280, 720]]) {
+  p = await open('?debug', { width: w, height: h }, w < 1280, 3);
+  await td(p, () => td.startGame()); await p.waitForTimeout(300);
+  const r = await td(p, () => {
+    const R = e => e.getBoundingClientRect(), hud = R(document.querySelector('.hud')), bar = R(document.querySelector('.bbar'));
+    const U = { l: 0, t: hud.bottom, r: innerWidth, b: innerHeight };
+    if (td.L.mode === 'rail') U.r = Math.min(U.r, bar.left); else U.b = Math.min(U.b, bar.top);
+    const M = td.MAPOBJ, inG = ([c, r]) => c >= 0 && c < M.cols && r >= 0 && r < M.rows, ex = [...M.path].reverse().find(inG);
+    const [ex0, ey0] = td.w2s(ex[0] * 128, ex[1] * 128), k = td.L.k * 128;
+    const bad = td.SPOTS.map((_, i) => [i, td.spotS(i)]).filter(([, [x, y]]) => x - 28 < U.l || y - 28 < U.t || x + 28 > U.r || y + 28 > U.b).map(a => a[0]);
+    return { U, bad, exit: [ex0, ey0, k], exitIn: ex0 >= U.l - .5 && ey0 >= U.t - .5 && ex0 + k <= U.r + .5 && ey0 + k <= U.b + .5, s: td.L.s, mode: td.L.mode, spots: td.SPOTS.map((_, i) => td.spotS(i)) };
+  });
+  ok(r.bad.length === 0, `${w}x${h} ${r.mode}: all spot tap circles inside unobscured rect ${JSON.stringify(r.U)} (tile ${r.s.toFixed(1)}) ${r.bad}`);
+  ok(r.exitIn, `${w}x${h}: path exit cell fully visible ${r.exit.map(v => v.toFixed(0))}`);
+  ok(r.s >= 32, `${w}x${h}: tile ${r.s.toFixed(1)}px >= 32 (whole grid fits between bars)`);
+  if (w < 1280) { // rapid taps (< 350 ms apart) each register: spot A then spot B → B selected, then same card twice builds
+    const [a, b] = [r.spots[0], r.spots[1]];
+    await p.touchscreen.tap(a[0], a[1]); await p.waitForTimeout(60); await p.touchscreen.tap(b[0], b[1]); await p.waitForTimeout(120);
+    ok(await td(p, () => td.g.selSpot) === 1, `${w}x${h}: rapid second tap (60ms apart) registers on spot 1`);
+  }
+  await p.done();
+}
+
 // 3. average plan on every map: must win narrowly
 const plan = [["b", 5, "archer"], ["b", 7, "archer"], ["b", 10, "archer"], ["b", 3, "archer"], ["b", 4, "archer"], ["b", 1, "archer"], ["b", 2, "cannon"], ["b", 11, "archer"], ["u", 5], ["u", 7], ["u", 10], ["u", 3], ["b", 13, "mage"], ["b", 12, "frost"], ["b", 9, "mage"], ["u", 4], ["u", 1], ["u", 2], ["u", 11], ["u", 13], ["u", 9], ["b", 0, "tesla"], ["u", 13], ["u", 9], ["u", 5], ["u", 7], ["u", 10], ["u", 3], ["u", 4], ["u", 1], ["u", 2], ["u", 11], ["b", 6, "cannon"], ["b", 8, "mage"], ["u", 12], ["u", 0], ["u", 6], ["u", 8], ["u", 12], ["u", 0], ["u", 6], ["u", 8]];
 for (const map of ['landscape', 'portrait', 'square']) {

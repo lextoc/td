@@ -167,3 +167,16 @@ button.confirm{min-width:110px}
 .sel-rail .acts{flex-direction:row}
 .card .acts{flex-direction:row}
 .selp.sel-sheet .p9-in{padding-bottom:4px}
+/* TD-5 QA fix: compact portrait sheet (5 cards in one row, Start + count in the second), HUD text >= 16px (SPEC-mobile §3) */
+#ui.m-sheet .bbar .barslot{width:52px;height:52px}
+#ui.m-sheet .bbar{gap:6px 6px;padding:2px 6px;border-width:8px 12px;border-image-width:8px 12px}
+#ui.m-sheet .bbar .start{order:2;min-width:120px;min-height:48px}
+#ui.m-sheet .next{order:3;flex-basis:auto;width:auto;max-width:150px;font-size:16px;line-height:1.15}
+#ui.m-sheet .bbar .barslot:nth-child(5)::after{content:'';}
+#ui.portrait.m-sheet .bbar::before{content:'';order:1;flex-basis:100%;height:0}
+#ui:not(.m-desktop) .small,#ui:not(.m-desktop) .detail,#ui:not(.m-desktop) .utext .small,#ui:not(.m-desktop) .tip,.tipb,#ui:not(.m-desktop) .next,#ui:not(.m-desktop) .crestt{font-size:16px}
+#ui:not(.m-desktop) button.slot .hk,#ui:not(.m-desktop) button.slot .cost{font-size:16px}
+#ui.m-rail .bbar .start{font-size:16px;padding:0 2px}
+#ui:not(.m-desktop) .sel-rail .acts button{font-size:16px}
+#ui:not(.m-desktop) button.slot .hk{display:none} /* hotkey digits are desktop-only; on touch they collided with the 16px cost */
+#ui.m-rail .bbar .start{white-space:normal;line-height:1.05;height:auto;min-height:56px}

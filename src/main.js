@@ -146,6 +146,7 @@ function setMap(m) { // safe mid-run: towers are keyed by spot index (index-matc
   const frac = g && PLEN ? g.enemies.map(e => e.dist / PLEN) : null;
   MAP = m; COLS = m.cols; ROWS = m.rows; PATH_TILES = m.path; SPOTS = m.spots;
   SPOT_SET = new Set(SPOTS.map(s => s + ''));
+  { const cs = [...SPOTS, ...PATH_TILES].filter(([c, r]) => c >= 0 && c < COLS && r >= 0 && r < ROWS), xs = cs.map(p => p[0]), ys = cs.map(p => p[1]); m.bounds = { c0: Math.min(...xs), c1: Math.max(...xs), r0: Math.min(...ys), r1: Math.max(...ys) }; }
   PATH_SET = new Map(PATH_TILES.map((p, i) => [p + '', pathArt(i)]));
   const ctr = ([c, r]) => [c * TS + 64, r * TS + 64];
   PTS = [ctr(m.entry), ...PATH_TILES.map(ctr), ctr(m.exit)];
@@ -266,22 +267,31 @@ function layout() { // all DOM reads happen here (resize / orientation / screen 
   const m = pickMap();
   if (m !== MAP) { setMap(m); if (screen === 'game' && g && !g.over && !g.paused) setPaused(true); } // mid-run variant switch: towers stay by spot index
   L.mode = MAP.cols > MAP.rows ? (vw >= 1280 ? 'desktop' : 'rail') : 'sheet';
-  Object.assign(L, { vw, vh, dpr: Math.min(devicePixelRatio || 1, 2) });
+  Object.assign(L, { vw, vh, dpr: Math.min(devicePixelRatio || 1, 3) }); // SPEC-mobile: up to DPR 3
   L.safe = { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
   const a = vw / vh;
   L.u = L.mode === 'desktop' ? Math.max(1, Math.min(2, vw / 1600, vh / 900)) : 1;
   L.crest = L.mode !== 'sheet';
   for (const md of ['sheet', 'rail', 'desktop']) ui.classList.toggle('m-' + md, L.mode === md);
   ui.classList.toggle('crest', L.crest); ui.classList.toggle('portrait', L.mode === 'sheet'); void a;
-  const P = { x: L.safe.l, y: L.safe.t, w: vw - L.safe.l - L.safe.r - (L.mode === 'rail' && screen === 'game' ? 88 : 0), h: vh - L.safe.t - L.safe.b };
-  const s0 = Math.min(P.w / COLS, P.h / ROWS), s = Math.max(40, Math.min(128, s0));
+  const rect = e => { if (!e || !e.isConnected) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+  const inGame = screen === 'game';
+  L.hudR = inGame ? rect(H$.hud) : null; L.barR = inGame ? rect(H$.bar) : null;
+  // unobscured play rect: safe area minus top HUD, bottom bar/sheet (sheet + desktop) or right rail (rail)
+  const P = { x: L.safe.l, y: L.safe.t, w: vw - L.safe.l - L.safe.r, h: vh - L.safe.t - L.safe.b };
+  if (inGame && L.hudR) { const t = L.hudR.y + L.hudR.h + 2; P.h -= t - P.y; P.y = t; }
+  if (inGame && L.barR) { if (L.mode === 'rail') P.w = Math.min(P.w, L.barR.x - 2 - P.x); else P.h = Math.min(P.h, L.barR.y - 2 - P.y); }
+  L.play = P;
+  // fit the playable bounds (every spot, every path cell incl. spawn/exit) plus a 28 px tap-circle margin into P.
+  // Decor-only rows/cols outside those bounds may sit under the bars (SPEC-mobile §2).
+  const B = MAP.bounds, bc = B.c1 - B.c0 + 1, br = B.r1 - B.r0 + 1, TAP = 28;
+  const fit = (len, n) => { const a = len / n; return a >= 2 * TAP ? a : (len - 2 * TAP) / Math.max(1, n - 1); };
+  const s = Math.min(128, fit(P.w, bc), fit(P.h, br));
   L.s = Math.floor(s * L.dpr) / L.dpr; L.k = L.s / TS; // whole device px per tile: no seams
-  L.ox = P.x + (P.w - COLS * L.s) / 2; L.oy = P.y + (P.h - ROWS * L.s) / 2;
+  L.ox = P.x + (P.w - bc * L.s) / 2 - B.c0 * L.s; L.oy = P.y + (P.h - br * L.s) / 2 - B.r0 * L.s;
   rs.setProperty('--u', L.u); rs.setProperty('--s', L.s + 'px');
   cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
   cv.width = Math.round(vw * L.dpr); cv.height = Math.round(vh * L.dpr);
-  const rect = e => { if (!e || !e.isConnected) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
-  L.hudR = screen === 'game' ? rect(H$.hud) : null; L.barR = screen === 'game' ? rect(H$.bar) : null;
   buildMapLayer();
   if (g && screen === 'game' && g.selSpot != null) openSel(g.selSpot, true);
 }
@@ -290,8 +300,6 @@ visualViewport?.addEventListener('resize', queueLayout);
 // no accidental zoom / pull-to-refresh on the game surface
 for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
 cv.addEventListener('dblclick', e => e.preventDefault());
-let lastTouchEnd = 0;
-cv.addEventListener('touchend', e => { const n = performance.now(); if (n - lastTouchEnd < 350) e.preventDefault(); lastTouchEnd = n; }, { passive: false });
 
 // ---------- game state ----------
 let screen = 'title', g = null;
@@ -809,7 +817,7 @@ addEventListener('keydown', ev => {
   else if (k === 'Escape') { if (g.radial != null || g.sel != null) { closePanels(); cv.focus(); } else if (g.slot) g.slot = null; else setPaused(true); }
 });
 
-if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, get map() { return MAP.id; }, get PATHLEN() { return PLEN; }, MAPS, setMap, layout, pathArt, L, spotS, s2w, w2s, spotAtXY };
+if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, get map() { return MAP.id; }, get PATHLEN() { return PLEN; }, MAPS, setMap, layout, get MAPOBJ() { return MAP; }, pathArt, L, spotS, s2w, w2s, spotAtXY };
 layout(); fontReady.then(titleScreen);
 
 mobileCSS();
