@@ -163,46 +163,93 @@ function pathPos(d) {
 }
 const spotC = i => [SPOTS[i][0] * TS + 64, SPOTS[i][1] * TS + 64];
 
-// ---------- terrain layer: ground + decor rules from the map's "terrain" block (swap art via the manifest) ----------
-let mapLayer = null, MAP_EXTRA = 0;
-const hashI = (h, c, r, n) => (((c * h[0] + r * h[1]) % n) + n) % n;
-function cellArt(c, r) {
-  const T = MAP.terrain, key = c + ',' + r, inside = c >= 0 && c < COLS && r >= 0 && r < ROWS;
-  const ground = T.tiles?.[key] || T.ground[hashI(T.groundHash, c, r, T.ground.length)];
-  const art = PATH_SET.get(key); if (art) return { ground: art };
-  if (!inside) for (const [e, p] of [[MAP.entry, PATH_TILES[0]], [MAP.exit, PATH_TILES.at(-1)]]) { // road continues off-map
-    const dx = e[0] - p[0], dy = e[1] - p[1];
-    if (dy === 0 && r === p[1] && (c - p[0]) * dx > 0) return { ground: 'dirt_path_straight_h' };
-    if (dx === 0 && c === p[0] && (r - p[1]) * dy > 0) return { ground: 'dirt_path_straight_v' };
+// ---------- terrain (td-terrain kit, rules data-driven from manifest.terrain + the map's "terrain" block) ----------
+// Layers (README-td-terrain.md): grass -> grass overlays -> path autotile -> [water, animated per frame] -> decals/props (Y-sorted).
+// Static parts are pre-rendered on layout into groundLayer / propLayer; only the water cells are redrawn each frame.
+let groundLayer = null, propLayer = null, MAP_EXTRA = 0, WATER = new Set(), waterDraw = [], TB = null;
+const hash3 = (x, y, s) => { let h = (x * 374761393 + y * 668265263 + s * 2246822519) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0); };
+const rng = s => () => ((s = Math.imul(s ^ (s >>> 15), 1 | s) + 0x6D2B79F5 | 0), (((s ^ (s >>> 7)) >>> 0) % 1e6) / 1e6);
+function roadCell(c, r) { // path, plus the road running off-map past spawn/exit (off-map neighbours of spawn/exit count as path)
+  if (PATH_SET.has(c + ',' + r)) return true;
+  if (c >= 0 && c < COLS && r >= 0 && r < ROWS) return false;
+  for (const [e, p] of [[MAP.entry, PATH_TILES[0]], [MAP.exit, PATH_TILES.at(-1)]]) {
+    const dx = Math.sign(e[0] - p[0]), dy = Math.sign(e[1] - p[1]);
+    if (dy === 0 && r === p[1] && (c - p[0]) * dx > 0) return true;
+    if (dx === 0 && c === p[0] && (r - p[1]) * dy > 0) return true;
   }
-  if (SPOT_SET.has(key)) return { ground };
-  let decor;
-  if (T.fixed?.[key]) decor = T.fixed[key];
-  else if (!inside) decor = T.edgeCycle[hashI(T.edgeHash, c, r, T.edgeCycle.length)];
-  else {
-    decor = T.decorCycle[hashI(T.decorHash, c, r, T.decorCycle.length)];
-    let near = false; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const k = (c + dx) + ',' + (r + dy); if (PATH_SET.has(k) || SPOT_SET.has(k)) near = true; }
-    if (near && decor) decor = T.lowSwap?.[decor] || decor;
-  }
-  return { ground, decor, out: !inside };
+  return false;
 }
-const dimCache = new Map();
-function dimOf(k, a) { let c = dimCache.get(k); if (!c) { const i = IMG[k]; c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const x = c.getContext('2d'); x.drawImage(i, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = `rgba(0,0,0,${a})`; x.fillRect(0, 0, c.width, c.height); dimCache.set(k, c); } return c; }
 function buildMapLayer() {
-  if (!IMG.grass_1 || !MAP) return;
-  mapLayer ??= document.createElement('canvas');
+  const MT = M.terrain; if (!IMG.t_grass_0 || !MAP) return;
+  const T = MAP.terrain, seed = T.seed | 0, d = L.dpr, k = L.k;
+  WATER = new Set((T.water || []).map(p => p + '')); const BR = new Set((T.bridges || []).flatMap(([c, r]) => [[c - 1, r], [c, r], [c + 1, r]].map(p => p + '')));
+  for (const b of BR) WATER.add(b);
   MAP_EXTRA = L.mode === 'sheet' ? Math.ceil(L.vh * .5) : 0; // room for the portrait pan
-  mapLayer.width = cv.width; mapLayer.height = cv.height + Math.round(MAP_EXTRA * L.dpr);
-  const c = mapLayer.getContext('2d'), d = L.dpr, k = L.k, dim = MAP.terrain.edgeDim ?? 0;
-  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  const mk = () => { const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height + Math.round(MAP_EXTRA * d); return c; };
+  groundLayer = mk(); propLayer = mk();
   const [wx0, wy0] = s2w(0, 0), [wx1, wy1] = s2w(L.vw, L.vh + MAP_EXTRA);
-  const x0 = Math.floor(wx0 / TS) - 1, x1 = Math.ceil(wx1 / TS), y0 = Math.floor(wy0 / TS) - 1, y1 = Math.ceil(wy1 / TS) + 1;
-  c.setTransform(d * k, 0, 0, d * k, d * L.ox, d * L.oy);
-  const cells = [];
-  for (let row = y0; row <= y1; row++) for (let col = x0; col <= x1; col++) { const a = cellArt(col, row); cells.push([col, row, a]); c.drawImage(IMG[a.ground] || IMG.grass_1, col * TS - .5, row * TS - .5, TS + 1, TS + 1); }
-  if (dim) { c.fillStyle = `rgba(0,0,0,${dim})`; for (const [col, row, a] of cells) if (a.out && !PATH_SET.has(col + ',' + row) && a.decor !== undefined) c.fillRect(col * TS - .5, row * TS - .5, TS + 1, TS + 1); }
-  for (let i = 0; i < SPOTS.length; i++) { const [x, y] = spotC(i); c.drawImage(IMG.build_spot, x - 64, y - 64, TS, TS); }
-  for (const [col, row, a] of cells) if (a.decor && IMG[a.decor]) { const im = a.out && dim ? dimOf(a.decor, dim) : IMG[a.decor]; c.drawImage(im, col * TS + 64 - im.width / 2, row * TS + 128 - im.height); }
+  const x0 = Math.floor(wx0 / TS) - 1, x1 = Math.ceil(wx1 / TS), y0 = Math.floor(wy0 / TS) - 1, y1 = Math.ceil(wy1 / TS) + 1; TB = { x0, x1, y0, y1 };
+  const inside = (c, r) => c >= 0 && c < COLS && r >= 0 && r < ROWS, offL = (c, r) => c < x0 || c > x1 || r < y0 || r > y1;
+  const g = groundLayer.getContext('2d'); g.imageSmoothingQuality = 'high'; g.setTransform(d * k, 0, 0, d * k, d * L.ox, d * L.oy);
+  // 1 grass: hash(x,y,seed) % 8
+  for (let r = y0; r <= y1; r++) for (let c = x0; c <= x1; c++) g.drawImage(IMG[MT.grass[hash3(c, r, seed) % MT.grass.length]], c * TS - .5, r * TS - .5, TS + 1, TS + 1);
+  // 2 overlay patches: ~1 per 6 cells, seeded RNG, free position
+  const R = rng(seed * 7919 + 1), area = (x1 - x0 + 1) * (y1 - y0 + 1);
+  for (let i = 0; i < area / MT.overlayPerCells; i++) { const px = (x0 + R() * (x1 - x0 + 1)) * TS - 64, py = (y0 + R() * (y1 - y0 + 1)) * TS - 64, im = IMG[MT.overlays[Math.floor(R() * MT.overlays.length)]]; g.drawImage(im, px, py, 256, 256); }
+  // 3 path: 4-bit autotile N1 E2 S4 W8
+  for (let r = y0; r <= y1; r++) for (let c = x0; c <= x1; c++) if (roadCell(c, r)) {
+    const m = (roadCell(c, r - 1) ? 1 : 0) | (roadCell(c + 1, r) ? 2 : 0) | (roadCell(c, r + 1) ? 4 : 0) | (roadCell(c - 1, r) ? 8 : 0);
+    g.drawImage(IMG[MT.path[m]], c * TS - .5, r * TS - .5, TS + 1, TS + 1);
+  }
+  // 4 water: 8-bit blob mask (diagonals kept only with both cardinals) -> 47 tiles via maskToTile; drawn per frame
+  const isW = (c, r) => WATER.has(c + ',' + r) || (offL(c, r) && WATER.size > 0 && [[c, Math.max(y0, Math.min(y1, r))], [Math.max(x0, Math.min(x1, c)), r]].some(p => WATER.has(p + ''))), B = MT.water.bits;
+  waterDraw = [];
+  for (const key of WATER) { const [c, r] = key.split(',').map(Number); if (offL(c, r)) continue;
+    const n = isW(c, r - 1), e = isW(c + 1, r), s = isW(c, r + 1), w = isW(c - 1, r);
+    let m = (n ? B.N : 0) | (e ? B.E : 0) | (s ? B.S : 0) | (w ? B.W : 0);
+    if (n && e && isW(c + 1, r - 1)) m |= B.NE; if (s && e && isW(c + 1, r + 1)) m |= B.SE; if (s && w && isW(c - 1, r + 1)) m |= B.SW; if (n && w && isW(c - 1, r - 1)) m |= B.NW;
+    waterDraw.push([c, r, MT.water.maskToTile[m], m]);
+  }
+  // 5/6 decals + props, Y-sorted by bottom-centre anchor
+  const P = [], PR = rng(seed * 104729 + 3), pick = a => a[Math.floor(PR() * a.length)], S = MT.scatter;
+  const busy = (c, r) => roadCell(c, r) || SPOT_SET.has(c + ',' + r);
+  const near = (c, r, f) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (f(c + dx, r + dy)) return true; return false; };
+  for (const [key, name] of Object.entries(T.fixed || {})) { const [c, r] = key.split(',').map(Number); if (MT.props[name]) P.push([name, c * TS + 64, r * TS + 112]); }
+  const fixed = new Set(Object.keys(T.fixed || {}));
+  for (const [c, r] of waterDraw) {
+    if (!near(c, r, (a, b) => !WATER.has(a + ',' + b) && !offL(a, b)) && PR() < .5) P.push([pick(S.water), c * TS + 30 + PR() * 68, r * TS + 40 + PR() * 70, 1]);
+  }
+  for (let r = y0; r <= y1 + 1; r++) for (let c = x0; c <= x1; c++) {
+    const key = c + ',' + r; if (busy(c, r) || WATER.has(key) || fixed.has(key)) continue;
+    const ins = inside(c, r), nearBusy = near(c, r, busy), nearW = near(c, r, (a, b) => WATER.has(a + ',' + b));
+    if (nearW && PR() < .55) P.push([pick(S.shoreRocks), c * TS + 20 + PR() * 88, r * TS + 30 + PR() * 80]); // break up the lake outline
+    if (ins && nearBusy) { if (PR() < .3) P.push([pick(S.decals), c * TS + (PR() < .5 ? 14 : 114), r * TS + (PR() < .5 ? 24 : 124), 1]); continue; }
+    const q = PR(), edge = !ins || c === 0 || c === COLS - 1 || r === 0 || r === ROWS - 1;
+    if (!ins && !nearBusy && q < .7) P.push([pick(S.edgeTrees), c * TS + 64 + (PR() - .5) * 50, r * TS + 112 + (PR() - .5) * 24]);
+    else if (edge && !nearBusy && q < .5) P.push([pick(S.edgeTrees.slice(0, 4)), c * TS + 64 + (PR() - .5) * 40, r * TS + 110 + (PR() - .5) * 20]);
+    else if (q < .25) P.push([pick(S.mid), c * TS + 64 + (PR() - .5) * 60, r * TS + 90 + (PR() - .5) * 40]);
+    for (let i = PR() < .5 ? 1 : 0; i > 0; i--) P.push([pick(S.decals), c * TS + 10 + PR() * 108, r * TS + 20 + PR() * 106, 1]);
+  }
+  for (const [c, r] of T.bridges || []) P.push(['bridge_h', c * TS + 64, r * TS + 127]);
+  P.sort((a, b) => (b[3] || 0) - (a[3] || 0) || a[2] - b[2]); // flat decals first, then upright props back-to-front
+  const p = propLayer.getContext('2d'); p.imageSmoothingQuality = 'high'; p.setTransform(d * k, 0, 0, d * k, d * L.ox, d * L.oy);
+  const dim = T.edgeDim ?? 0;
+  for (const [name, x, y] of P) { const pr = MT.props[name]; const im = IMG[pr.image]; p.drawImage(im, x - pr.anchor[0], y - pr.anchor[1]); }
+  if (dim) { // outside the playable grid reads as scenery: soft vignette instead of per-cell boxes
+    for (const L2 of [g, p]) { L2.save(); L2.globalCompositeOperation = 'source-atop'; L2.fillStyle = `rgba(20,30,10,${dim})`;
+      L2.beginPath(); L2.rect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 2) * TS); L2.rect(0, 0, COLS * TS, ROWS * TS); L2.fill('evenodd'); L2.restore(); }
+  }
+  for (let i = 0; i < SPOTS.length; i++) { const [x, y] = spotC(i); g.drawImage(IMG.build_spot, x - 64, y - 64, TS, TS); }
+}
+function drawTerrain(t) {
+  if (!groundLayer) return; const oy = Math.round(-L.pan * L.dpr);
+  ctx.drawImage(groundLayer, 0, oy);
+  const W = M.terrain.water, f = Math.floor(t * W.fps) % W.frames;
+  ctx.save(); ctx.setTransform(L.dpr, 0, 0, L.dpr, 0, 0); ctx.imageSmoothingQuality = 'high';
+  for (const [c, r, tile] of waterDraw) { const im = IMG[W.image.replace('{tile}', tile).replace('{frame}', f)]; const [sx, sy] = w2s(c * TS, r * TS); if (im) ctx.drawImage(im, sx - .5, sy - .5, L.k * TS + 1, L.k * TS + 1); }
+  if (MAP.terrain.edgeDim) { ctx.fillStyle = `rgba(20,30,10,${MAP.terrain.edgeDim})`; for (const [c, r] of waterDraw) if (!(c >= 0 && c < COLS && r >= 0 && r < ROWS)) { const [sx, sy] = w2s(c * TS, r * TS); ctx.fillRect(sx - .5, sy - .5, L.k * TS + 1, L.k * TS + 1); } }
+  ctx.restore();
+  ctx.drawImage(propLayer, 0, oy);
 }
 
 // ---------- responsive layout: ONE screen<->world transform (SPEC-mobile.md §2) ----------
@@ -648,7 +695,7 @@ let cvFocused = false;
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
   if (screen !== 'game' || !g) return;
-  if (mapLayer) ctx.drawImage(mapLayer, 0, Math.round(-L.pan * L.dpr));
+  drawTerrain(performance.now() / 1000);
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   const items = [];
   for (const t of Object.values(g.towers)) {
@@ -759,7 +806,7 @@ addEventListener('keydown', ev => {
   else if (k === 'Escape') { if (g.radial != null || g.sel != null) { closePanels(); cv.focus(); } else if (g.slot) g.slot = null; else setPaused(true); }
 });
 
-if (DEBUG) window.td = { played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, get map() { return MAP.id; }, get PATHLEN() { return PLEN; }, MAPS, setMap, layout, pathArt, L, spotS, s2w, w2s, spotAtXY };
+if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, get map() { return MAP.id; }, get PATHLEN() { return PLEN; }, MAPS, setMap, layout, pathArt, L, spotS, s2w, w2s, spotAtXY };
 layout(); fontReady.then(titleScreen);
 
 mobileCSS();
