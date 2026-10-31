@@ -328,10 +328,10 @@ function startGame() {
   const hud = el('div', ui, [0, 0, W, 0], 'nopt');
   img(hud, [0, 0, 96, 104], 'hud_cap_left'); img(hud, [1824, 0, 96, 104], 'hud_cap_right');
   const body = el('div', hud, [96, 0, 1728, 80], ''); body.style.background = url('hud_body') + ' repeat-x';
-  img(hud, [112, 8, 64, 64], 'icon_gold'); H$.gold = text(hud, [184, 20], '', 28, 'left', 'out display');
-  H$.heart = img(hud, [312, 8, 64, 64], 'icon_heart'); H$.lives = text(hud, [384, 20], '', 28, 'left', 'out display');
-  img(hud, [512, 8, 64, 64], 'icon_skull'); H$.left = text(hud, [584, 20], '', 28, 'left', 'out display');
-  img(hud, [820, 0, 280, 192], 'hud_center'); img(hud, [928, 8, 64, 64], 'icon_wave');
+  img(hud, [112, 8, 64, 64], 'icon_gold', 'nopt hudico'); H$.gold = text(hud, [184, 20], '', 28, 'left', 'out display');
+  H$.heart = img(hud, [312, 8, 64, 64], 'icon_heart', 'nopt hudico'); H$.lives = text(hud, [384, 20], '', 28, 'left', 'out display');
+  img(hud, [512, 8, 64, 64], 'icon_skull', 'nopt hudico'); H$.left = text(hud, [584, 20], '', 28, 'left', 'out display');
+  img(hud, [820, 0, 280, 192], 'hud_center'); img(hud, [928, 8, 64, 64], 'icon_wave', 'nopt hudico');
   H$.wave = text(hud, [820, 110, 280, 40], '', 28, 'center', 'out display');
   img(hud, [1180, 16, 256, 48], 'bar_frame');
   H$.wfill = el('div', hud, [1220, 32, 176, 16], ''); H$.wfill.style.background = url('wave_fill');

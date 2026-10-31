@@ -29,3 +29,4 @@ button.slot .cost{position:absolute;right:6px;top:72px;font-size:18px;color:var(
 .display{font-family:var(--display);font-weight:normal;letter-spacing:.02em}
 button.b .ico{width:40px;height:40px;margin:-22px -36px;}
 .toast .portrait{width:96px;height:96px;display:block;margin:0 auto 4px}
+img.hudico{object-fit:contain;object-position:center;image-rendering:auto}
