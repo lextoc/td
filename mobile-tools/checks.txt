@@ -1,0 +1,122 @@
+== portrait 8x15
+PASS contiguous (orthogonal steps)
+PASS length 25 in 23..27
+PASS no repeated path tile
+PASS path in bounds
+PASS path avoids HUD rows
+PASS spawn/exit on map edge
+PASS spot count 14==14 (unique)
+PASS spots in bounds & not HUD rows
+PASS spots off path
+PASS spots 8-adjacent to path
+PASS path tile assets exist
+PASS decor assets exist
+path (0,2) (1,2) (2,2) (3,2) (4,2) (5,2) (5,3) (5,4) (5,5) (4,5) (3,5) (2,5) (1,5) (1,6) (1,7) (1,8) (2,8) (3,8) (4,8) (5,8) (5,9) (5,10) (5,11) (6,11) (7,11)
+   (0,2) (1,2) (2,2) (3,2) (4,2) -> dirt_path_straight_h
+   (5,2) -> dirt_path_corner_sw
+   (5,3) (5,4) -> dirt_path_straight_v
+   (5,5) -> dirt_path_corner_nw
+   (4,5) (3,5) (2,5) -> dirt_path_straight_h
+   (1,5) -> dirt_path_corner_se
+   (1,6) (1,7) -> dirt_path_straight_v
+   (1,8) -> dirt_path_corner_ne
+   (2,8) (3,8) (4,8) -> dirt_path_straight_h
+   (5,8) -> dirt_path_corner_sw
+   (5,9) (5,10) -> dirt_path_straight_v
+   (5,11) -> dirt_path_corner_ne
+   (6,11) (7,11) -> dirt_path_straight_h
+spots (1,3) (4,3) (6,3) (3,4) (0,6) (2,6) (4,6) (3,7) (0,9) (3,9) (6,9) (4,10) (4,12) (6,12)
+  T Y T Y T Y T Y
+  S R r R r R r R
+  # # # # # # . b
+  B O B f O # O f
+  . B . O . # . B
+  b # # # # # b T
+  O # O r O r R r
+  b # b O b . b .
+  f # # # # # f B
+  O . B O B # O .
+  f b f b O # f b
+  r R r R r # # #
+  . b . b O b O F
+  A f A f B f B f
+  . B . B . B . B
+== landscape 15x8
+PASS contiguous (orthogonal steps)
+PASS length 25 in 23..27
+PASS no repeated path tile
+PASS path in bounds
+PASS path avoids HUD rows
+PASS spawn/exit on map edge
+PASS spot count 14==14 (unique)
+PASS spots in bounds & not HUD rows
+PASS spots off path
+PASS spots 8-adjacent to path
+PASS path tile assets exist
+PASS decor assets exist
+path (0,2) (1,2) (2,2) (3,2) (4,2) (4,3) (4,4) (4,5) (5,5) (6,5) (7,5) (8,5) (8,4) (8,3) (8,2) (9,2) (10,2) (11,2) (11,3) (11,4) (11,5) (12,5) (13,5) (13,4) (14,4)
+   (0,2) (1,2) (2,2) (3,2) -> dirt_path_straight_h
+   (4,2) -> dirt_path_corner_sw
+   (4,3) (4,4) -> dirt_path_straight_v
+   (4,5) -> dirt_path_corner_ne
+   (5,5) (6,5) (7,5) -> dirt_path_straight_h
+   (8,5) -> dirt_path_corner_nw
+   (8,4) (8,3) -> dirt_path_straight_v
+   (8,2) -> dirt_path_corner_se
+   (9,2) (10,2) -> dirt_path_straight_h
+   (11,2) -> dirt_path_corner_sw
+   (11,3) (11,4) -> dirt_path_straight_v
+   (11,5) -> dirt_path_corner_ne
+   (12,5) -> dirt_path_straight_h
+   (13,5) -> dirt_path_corner_nw
+   (13,4) -> dirt_path_corner_se
+   (14,4) -> dirt_path_straight_h
+spots (2,1) (2,3) (3,4) (5,3) (6,4) (6,6) (7,6) (9,4) (9,6) (10,1) (10,3) (12,3) (12,4) (12,6)
+  T b f b T Y T Y T b f b T Y T
+  S R O R r R r R r R O R r R r
+  # # # # # b . b # # # # . b .
+  B f O f # O B f # f O # O f B
+  . B . O # B O B # O . # O # #
+  Y T b f # # # # # f b # # # F
+  R r R r R r O O R O R r O r R
+  b . b . b . b . b . b . b . b
+== square 11x11
+PASS contiguous (orthogonal steps)
+PASS length 25 in 23..27
+PASS no repeated path tile
+PASS path in bounds
+PASS path avoids HUD rows
+PASS spawn/exit on map edge
+PASS spot count 14==14 (unique)
+PASS spots in bounds & not HUD rows
+PASS spots off path
+PASS spots 8-adjacent to path
+PASS path tile assets exist
+PASS decor assets exist
+path (0,2) (1,2) (2,2) (3,2) (3,3) (3,4) (3,5) (3,6) (3,7) (4,7) (5,7) (6,7) (6,6) (6,5) (6,4) (6,3) (7,3) (8,3) (8,4) (8,5) (8,6) (8,7) (8,8) (9,8) (10,8)
+   (0,2) (1,2) (2,2) -> dirt_path_straight_h
+   (3,2) -> dirt_path_corner_sw
+   (3,3) (3,4) (3,5) (3,6) -> dirt_path_straight_v
+   (3,7) -> dirt_path_corner_ne
+   (4,7) (5,7) -> dirt_path_straight_h
+   (6,7) -> dirt_path_corner_nw
+   (6,6) (6,5) (6,4) -> dirt_path_straight_v
+   (6,3) -> dirt_path_corner_se
+   (7,3) -> dirt_path_straight_h
+   (8,3) -> dirt_path_corner_sw
+   (8,4) (8,5) (8,6) (8,7) -> dirt_path_straight_v
+   (8,8) -> dirt_path_corner_ne
+   (9,8) (10,8) -> dirt_path_straight_h
+spots (2,1) (5,2) (9,2) (4,3) (2,4) (4,5) (5,5) (7,5) (9,5) (2,7) (9,7) (5,8) (7,8) (9,9)
+  T b f b T Y T Y T Y T
+  S R O R r R r R r R r
+  # # # # . O . b . O .
+  B f B # O f # # # f B
+  . B O # . B # B # B .
+  Y f b # O O # O # O b
+  R r R # R r # r # r R
+  b . O # # # # . # O b
+  f B f B f O f O # # #
+  B . B . B . B . B O F
+  T Y T Y T Y T Y f b f
+ALL PASS

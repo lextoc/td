@@ -1,0 +1,256 @@
+{
+ "id": "square",
+ "name": "Kingsroad (square)",
+ "cols": 11,
+ "rows": 11,
+ "hudRows": [
+  0,
+  10
+ ],
+ "entry": [
+  -1,
+  2
+ ],
+ "exit": [
+  11,
+  8
+ ],
+ "path": [
+  [
+   0,
+   2
+  ],
+  [
+   1,
+   2
+  ],
+  [
+   2,
+   2
+  ],
+  [
+   3,
+   2
+  ],
+  [
+   3,
+   3
+  ],
+  [
+   3,
+   4
+  ],
+  [
+   3,
+   5
+  ],
+  [
+   3,
+   6
+  ],
+  [
+   3,
+   7
+  ],
+  [
+   4,
+   7
+  ],
+  [
+   5,
+   7
+  ],
+  [
+   6,
+   7
+  ],
+  [
+   6,
+   6
+  ],
+  [
+   6,
+   5
+  ],
+  [
+   6,
+   4
+  ],
+  [
+   6,
+   3
+  ],
+  [
+   7,
+   3
+  ],
+  [
+   8,
+   3
+  ],
+  [
+   8,
+   4
+  ],
+  [
+   8,
+   5
+  ],
+  [
+   8,
+   6
+  ],
+  [
+   8,
+   7
+  ],
+  [
+   8,
+   8
+  ],
+  [
+   9,
+   8
+  ],
+  [
+   10,
+   8
+  ]
+ ],
+ "spots": [
+  [
+   2,
+   1
+  ],
+  [
+   5,
+   2
+  ],
+  [
+   9,
+   2
+  ],
+  [
+   4,
+   3
+  ],
+  [
+   2,
+   4
+  ],
+  [
+   4,
+   5
+  ],
+  [
+   5,
+   5
+  ],
+  [
+   7,
+   5
+  ],
+  [
+   9,
+   5
+  ],
+  [
+   2,
+   7
+  ],
+  [
+   9,
+   7
+  ],
+  [
+   5,
+   8
+  ],
+  [
+   7,
+   8
+  ],
+  [
+   9,
+   9
+  ]
+ ],
+ "terrain": {
+  "ground": [
+   "grass_1",
+   "grass_2",
+   "grass_3"
+  ],
+  "groundHash": [
+   7,
+   3
+  ],
+  "decorCycle": [
+   "tree_1",
+   "bush_1",
+   null,
+   "rock_1",
+   "flowers",
+   "tree_2",
+   null,
+   "bush_2",
+   "rock_2",
+   "tree_3"
+  ],
+  "decorHash": [
+   5,
+   3
+  ],
+  "lowSwap": {
+   "tree_1": "flowers",
+   "tree_2": "bush_1",
+   "tree_3": "bush_2"
+  },
+  "edgeCycle": [
+   "tree_1",
+   "tree_3",
+   "bush_2",
+   "tree_2",
+   "rock_3",
+   null
+  ],
+  "edgeHash": [
+   5,
+   3
+  ],
+  "edgeDim": 0.25,
+  "fixed": {
+   "0,1": "signpost",
+   "10,9": "fence"
+  },
+  "water": null
+ },
+ "source": "SPEC-mobile.md \u00a71 / mobile-tools/maps.py",
+ "_specPathArt": [
+  "dirt_path_straight_h",
+  "dirt_path_straight_h",
+  "dirt_path_straight_h",
+  "dirt_path_corner_sw",
+  "dirt_path_straight_v",
+  "dirt_path_straight_v",
+  "dirt_path_straight_v",
+  "dirt_path_straight_v",
+  "dirt_path_corner_ne",
+  "dirt_path_straight_h",
+  "dirt_path_straight_h",
+  "dirt_path_corner_nw",
+  "dirt_path_straight_v",
+  "dirt_path_straight_v",
+  "dirt_path_straight_v",
+  "dirt_path_corner_se",
+  "dirt_path_straight_h",
+  "dirt_path_corner_sw",
+  "dirt_path_straight_v",
+  "dirt_path_straight_v",
+  "dirt_path_straight_v",
+  "dirt_path_straight_v",
+  "dirt_path_corner_ne",
+  "dirt_path_straight_h",
+  "dirt_path_straight_h"
+ ]
+}

@@ -124,7 +124,15 @@
   "icon_speed1": "/assets/icons/icon_speed_1x.png",
   "icon_speed2": "/assets/icons/icon_speed_2x.png",
   "icon_mute": "/assets/icons/icon_mute.png",
-  "icon_muted": "/assets/icons/icon_muted.png"
+  "icon_muted": "/assets/icons/icon_muted.png",
+  "enemy_goblin_left": "/assets/pack/enemies/enemy_goblin_left.png",
+  "enemy_orc_left": "/assets/pack/enemies/enemy_orc_left.png",
+  "enemy_knight_left": "/assets/pack/enemies/enemy_knight_left.png",
+  "enemy_troll_boss_left": "/assets/pack/enemies/enemy_troll_boss_left.png",
+  "rock_1": "/assets/pack/decor/rock_1.png",
+  "rock_2": "/assets/pack/decor/rock_2.png",
+  "icon_close": "/assets/ui/mobile/icon_close.png",
+  "icon_undo": "/assets/ui/mobile/icon_undo.png"
  },
  "sounds": {
   "fire_archer": "/assets/sounds/01-arrow-ballista.ogg",
@@ -193,6 +201,14 @@
   "sound_off": {
    "image": "icon_muted",
    "text": "♪̸"
+  },
+  "close": {
+   "image": "icon_close",
+   "text": "✕"
+  },
+  "undo": {
+   "image": "icon_undo",
+   "text": "Undo"
   }
  },
  "theme": {
@@ -208,12 +224,576 @@
   "lowLives": "#ff7a6a",
   "cost": "#f0c34a"
  },
- "lake": {
-  "_comment": "tile overrides for the water area (0..3,6..7); shore pieces sit on grass_1",
-  "0,6": "grass_water_edge_s",
-  "1,6": "grass_water_edge_s",
-  "2,6": "grass_water_edge_s",
-  "3,6": "grass_water_outer_sw",
-  "3,7": "grass_water_edge_w"
+ "anims": {
+  "goblin_walk": {
+   "sheets": {
+    "right": "enemy_goblin",
+    "left": "enemy_goblin_left"
+   },
+   "frames": 1,
+   "fps": 8,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "orc_walk": {
+   "sheets": {
+    "right": "enemy_orc",
+    "left": "enemy_orc_left"
+   },
+   "frames": 1,
+   "fps": 8,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "knight_walk": {
+   "sheets": {
+    "right": "enemy_knight",
+    "left": "enemy_knight_left"
+   },
+   "frames": 1,
+   "fps": 8,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "troll_boss_walk": {
+   "sheets": {
+    "right": "enemy_troll_boss",
+    "left": "enemy_troll_boss_left"
+   },
+   "frames": 1,
+   "fps": 8,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "archer_l1_idle": {
+   "sheet": "tower_archer_l1",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "archer_l2_idle": {
+   "sheet": "tower_archer_l2",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "archer_l3_idle": {
+   "sheet": "tower_archer_l3",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "cannon_l1_idle": {
+   "sheet": "tower_cannon_l1",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "cannon_l2_idle": {
+   "sheet": "tower_cannon_l2",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "cannon_l3_idle": {
+   "sheet": "tower_cannon_l3",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "mage_l1_idle": {
+   "sheet": "tower_mage_l1",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "mage_l2_idle": {
+   "sheet": "tower_mage_l2",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "mage_l3_idle": {
+   "sheet": "tower_mage_l3",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "frost_l1_idle": {
+   "sheet": "tower_frost_l1",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "frost_l2_idle": {
+   "sheet": "tower_frost_l2",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "frost_l3_idle": {
+   "sheet": "tower_frost_l3",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "tesla_l1_idle": {
+   "sheet": "tower_tesla_l1",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "tesla_l2_idle": {
+   "sheet": "tower_tesla_l2",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "tesla_l3_idle": {
+   "sheet": "tower_tesla_l3",
+   "frames": 1,
+   "anchor": [
+    0.5,
+    1
+   ],
+   "loop": true
+  },
+  "fx_explosion": {
+   "sheet": "fx_explosion",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 4,
+   "fps": 12,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "loop": false
+  },
+  "fx_frost_hit": {
+   "sheet": "fx_frost_hit",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 4,
+   "fps": 12,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "loop": false
+  },
+  "fx_lightning_hit": {
+   "sheet": "fx_lightning_hit",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 4,
+   "fps": 12,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "loop": false
+  },
+  "fx_magic_burst": {
+   "sheet": "fx_magic_burst",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 4,
+   "fps": 12,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "loop": false
+  },
+  "fx_death_puff": {
+   "sheet": "fx_death_puff",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 4,
+   "fps": 12,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "loop": false
+  },
+  "fx_coin_pop": {
+   "sheet": "fx_coin_pop",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 4,
+   "fps": 12,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "loop": false
+  }
+ },
+ "sprites": {
+  "enemy.goblin": {
+   "walk": "goblin_walk",
+   "hit": null,
+   "death": null,
+   "deathFx": "fx_death_puff"
+  },
+  "enemy.orc": {
+   "walk": "orc_walk",
+   "hit": null,
+   "death": null,
+   "deathFx": "fx_death_puff"
+  },
+  "enemy.knight": {
+   "walk": "knight_walk",
+   "hit": null,
+   "death": null,
+   "deathFx": "fx_death_puff"
+  },
+  "enemy.troll": {
+   "walk": "troll_boss_walk",
+   "hit": null,
+   "death": null,
+   "deathFx": "fx_death_puff"
+  },
+  "tower.archer.1": {
+   "idle": "archer_l1_idle",
+   "attack": null
+  },
+  "tower.archer.2": {
+   "idle": "archer_l2_idle",
+   "attack": null
+  },
+  "tower.archer.3": {
+   "idle": "archer_l3_idle",
+   "attack": null
+  },
+  "tower.cannon.1": {
+   "idle": "cannon_l1_idle",
+   "attack": null
+  },
+  "tower.cannon.2": {
+   "idle": "cannon_l2_idle",
+   "attack": null
+  },
+  "tower.cannon.3": {
+   "idle": "cannon_l3_idle",
+   "attack": null
+  },
+  "tower.mage.1": {
+   "idle": "mage_l1_idle",
+   "attack": null
+  },
+  "tower.mage.2": {
+   "idle": "mage_l2_idle",
+   "attack": null
+  },
+  "tower.mage.3": {
+   "idle": "mage_l3_idle",
+   "attack": null
+  },
+  "tower.frost.1": {
+   "idle": "frost_l1_idle",
+   "attack": null
+  },
+  "tower.frost.2": {
+   "idle": "frost_l2_idle",
+   "attack": null
+  },
+  "tower.frost.3": {
+   "idle": "frost_l3_idle",
+   "attack": null
+  },
+  "tower.tesla.1": {
+   "idle": "tesla_l1_idle",
+   "attack": null
+  },
+  "tower.tesla.2": {
+   "idle": "tesla_l2_idle",
+   "attack": null
+  },
+  "tower.tesla.3": {
+   "idle": "tesla_l3_idle",
+   "attack": null
+  },
+  "projectile.arrow": {
+   "fly": null
+  },
+  "projectile.cannonball": {
+   "fly": null
+  },
+  "projectile.magic_bolt": {
+   "fly": null
+  },
+  "projectile.frost_shard": {
+   "fly": null
+  },
+  "projectile.lightning_arc": {
+   "fly": null
+  }
+ },
+ "_animComment": "See README 'Animation manifest'. Missing state (null) -> procedural fallback.",
+ "ui": {
+  "_comment": "td-pack-2/ui/mobile 9-slice art (margins from td-pack-2 ui/make_mobile.py). slice = [top,right,bottom,left] in 1x px; @2x/@3x picked by devicePixelRatio. src may contain {state}.",
+  "sheetTop": {
+   "src": "/assets/ui/mobile/sheet_top.png",
+   "size": [
+    160,
+    112
+   ],
+   "slice": [
+    48,
+    48,
+    16,
+    48
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "sheetFrame": "panel_dark_",
+  "sheetHandle": {
+   "src": "/assets/ui/mobile/sheet_handle.png",
+   "size": [
+    80,
+    12
+   ],
+   "slice": null,
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "railFrame": {
+   "src": "/assets/ui/mobile/rail_frame.png",
+   "size": [
+    88,
+    160
+   ],
+   "slice": [
+    24,
+    24,
+    24,
+    24
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "button48": {
+   "src": "/assets/ui/mobile/button_48_{state}.png",
+   "size": [
+    48,
+    48
+   ],
+   "slice": [
+    14,
+    14,
+    14,
+    14
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ],
+   "states": [
+    "normal",
+    "pressed",
+    "disabled"
+   ]
+  },
+  "button64": {
+   "src": "/assets/ui/mobile/button_64_{state}.png",
+   "size": [
+    64,
+    64
+   ],
+   "slice": [
+    18,
+    18,
+    18,
+    18
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ],
+   "states": [
+    "normal",
+    "pressed",
+    "disabled"
+   ]
+  },
+  "slot48": {
+   "src": "/assets/ui/mobile/slot_48_{state}.png",
+   "size": [
+    48,
+    48
+   ],
+   "slice": [
+    14,
+    14,
+    14,
+    14
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ],
+   "states": [
+    "normal",
+    "pressed",
+    "disabled",
+    "locked",
+    "selected"
+   ]
+  },
+  "slot64": {
+   "src": "/assets/ui/mobile/slot_64_{state}.png",
+   "size": [
+    64,
+    64
+   ],
+   "slice": [
+    18,
+    18,
+    18,
+    18
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ],
+   "states": [
+    "normal",
+    "pressed",
+    "disabled",
+    "locked",
+    "selected"
+   ]
+  },
+  "compactCrest": {
+   "src": "/assets/ui/mobile/crest_compact.png",
+   "size": [
+    140,
+    96
+   ],
+   "slice": null,
+   "scales": [
+    1,
+    2,
+    3
+   ],
+   "textY": 40
+  },
+  "tooltip": {
+   "src": "/assets/ui/mobile/tooltip_body.png",
+   "size": [
+    96,
+    64
+   ],
+   "slice": [
+    20,
+    20,
+    20,
+    20
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "tooltipTail": {
+   "src": "/assets/ui/mobile/tooltip_tail.png",
+   "size": [
+    24,
+    16
+   ],
+   "slice": null,
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  }
+ },
+ "hiDpi96": {
+  "_comment": "96 px variants used when devicePixelRatio >= 3 (td-pack-2)",
+  "icon_pause": "/assets/icons/icon_pause_96.png",
+  "icon_play": "/assets/icons/icon_play_96.png",
+  "icon_speed1": "/assets/icons/icon_speed_1x_96.png",
+  "icon_speed2": "/assets/icons/icon_speed_2x_96.png",
+  "icon_mute": "/assets/icons/icon_mute_96.png",
+  "icon_muted": "/assets/icons/icon_muted_96.png",
+  "icon_gold": "/assets/ui/icon/icon_gold_96.png",
+  "icon_heart": "/assets/ui/icon/icon_heart_96.png",
+  "icon_skull": "/assets/ui/icon/icon_skull_96.png",
+  "icon_wave": "/assets/ui/icon/icon_wave_96.png",
+  "icon_close": "/assets/ui/mobile/icon_close_96.png",
+  "icon_undo": "/assets/ui/mobile/icon_undo_96.png"
  }
 }

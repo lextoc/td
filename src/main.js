@@ -2,12 +2,12 @@ import M from './manifest.json';
 import './style.css';
 
 // ---------- setup / theme ----------
-const W = 1920, H = 1080, TS = 128;
+const TS = 128; // world units: one tile = 128 px of art
 const T = M.theme;
 const Q = new URLSearchParams(location.search);
 const DEBUG = Q.has('debug');
 const FF = DEBUG ? Math.max(1, +Q.get('ff') || 1) : 1;
-const stage = document.getElementById('stage'), cv = document.getElementById('cv'), ctx = cv.getContext('2d'), ui = document.getElementById('ui');
+const stage = document.getElementById('stage') || document.body, cv = document.getElementById('cv'), ctx = cv.getContext('2d'), ui = document.getElementById('ui');
 const url = k => `url("${M.images[k]}")`;
 const rs = document.documentElement.style;
 for (const [k, v] of Object.entries(T)) rs.setProperty('--' + k, v);
@@ -17,42 +17,45 @@ stage.style.fontFamily = M.font.body.family;
 const DISPLAY = M.font.display;
 rs.setProperty('--display', `"${DISPLAY.family}", ${M.font.body.family}`);
 const fontReady = DISPLAY.url ? new FontFace(DISPLAY.family, `url(${DISPLAY.url})`).load().then(f => document.fonts.add(f)).catch(() => {}) : Promise.resolve();
-function fit() {
-  const s = Math.min(innerWidth / W, innerHeight / H);
-  stage.style.transform = `translate(${(innerWidth - W * s) / 2}px,${(innerHeight - H * s) / 2}px) scale(${s})`;
-}
-addEventListener('resize', fit); fit();
-
 // ---------- DOM helpers ----------
-function el(tag, parent, r, cls, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (r) Object.assign(e.style, { position: 'absolute', left: r[0] + 'px', top: r[1] + 'px', width: r[2] != null ? r[2] + 'px' : '', height: r[3] != null ? r[3] + 'px' : '' });
-  if (text != null) e.textContent = text;
-  parent.appendChild(e);
-  return e;
+function h(tag, parent, cls, text) {
+  const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; parent.appendChild(e); return e;
 }
-function img(parent, r, key, cls = 'nopt') { const e = el('img', parent, r, cls); e.src = M.images[key]; e.alt = ''; return e; }
-function btn(parent, r, label, fn, aria) {
-  const b = el('button', parent, r, 'b display', label); b.onclick = () => { play('ui_click'); fn(); }; b.onmouseenter = () => play('ui_hover');
+const DPR = window.devicePixelRatio || 1, KX = DPR >= 2.5 ? 3 : DPR >= 1.5 ? 2 : 1; // pick 1x/@2x/@3x art by DPR
+const imgSrc = key => (DPR >= 3 && M.hiDpi96?.[key]) || M.images[key]; // 96 px HUD icons on DPR >= 3
+const uiSrc = (d, st = '') => { const u = d.src.replace('{state}', st); return KX > 1 && d.scales?.includes(KX) ? u.replace(/\.png$/, `@${KX}x.png`) : u; };
+// 9-slice via border-image: slice in source px (1x margin * KX), border widths in CSS px (1x margin) -> corners never stretch
+const nine = (d, st, z = 1) => { const [t, r, b, l] = d.slice; return `border-style:solid;border-width:${t * z}px ${r * z}px ${b * z}px ${l * z}px;border-image:url("${uiSrc(d, st)}") ${t * KX} ${r * KX} ${b * KX} ${l * KX} fill / ${t * z}px ${r * z}px ${b * z}px ${l * z}px stretch;`; };
+function mobileCSS() { // td-pack-2/ui/mobile skin for sheet + rail modes, generated from manifest.ui
+  const U = M.ui, R = [], st = (sel, d, s, z) => R.push(`${sel}{${nine(d, s, z)}background:none;}`);
+  st('#ui:not(.m-desktop) .selp.sel-sheet', U.sheetTop); R.push('#ui:not(.m-desktop) .selp.sel-sheet>[class^="p9-"]:not(.p9-in){display:none}');
+  st('#ui.m-rail .bbar', U.railFrame); st('#ui.m-rail .selp.sel-rail', U.railFrame); R.push('#ui.m-rail .sel-rail>[class^="p9-"]:not(.p9-in){display:none}');
+  for (const [sel, d] of [['#ui:not(.m-desktop) .acts button,#ui:not(.m-desktop) .toast .undo,#ui:not(.m-desktop) .bbar .start', U.button48], ['#ui:not(.m-desktop) .acts button.confirm', U.button64]]) {
+    st(sel, d, 'normal'); st(sel.split(',').map(x => x + ':active').join(','), d, 'pressed'); st(sel.split(',').map(x => x + ':disabled').join(','), d, 'disabled');
+  }
+  for (const [sel, d] of [['#ui.m-sheet .slot', U.slot64], ['#ui.m-rail .slot', U.slot48]]) {
+    st(sel, d, 'normal'); st(sel + ':active', d, 'pressed'); st(sel + '.locked', d, 'locked'); st(sel + '.sel', d, 'selected');
+  }
+  R.push(`#ui:not(.m-desktop) .tipb{${nine(U.tooltip, '')}background:none;color:#2a1a12}`);
+  const e = document.createElement('style'); e.id = 'mobile-skin'; e.textContent = R.join('\n'); document.head.appendChild(e);
+}
+function img(parent, key, cls = 'nopt') { const e = h('img', parent, cls); e.src = imgSrc(key); e.alt = ''; e.draggable = false; return e; }
+function btn(parent, label, fn, aria, cls = '') {
+  const b = h('button', parent, 'b display ' + cls, label); b.onclick = () => { play('ui_click'); fn(); }; b.onmouseenter = () => play('ui_hover');
   if (aria) b.setAttribute('aria-label', aria); return b;
 }
-function panel(parent, r, dark = true) {
-  const p = el('div', parent, r, 'pe'), k = dark ? 'panel_dark_' : 'panel_', [, , w, h] = r, m = 48;
-  const part = (n, x, y, pw, ph) => { const d = el('div', p, [x, y, pw, ph], ''); d.style.background = url(k + n); d.style.backgroundSize = n.length === 1 && n !== 'c' ? (n === 't' || n === 'b' ? '64px 48px' : '48px 64px') : (n === 'c' ? '64px 64px' : '48px 48px'); };
-  part('c', m, m, w - 2 * m, h - 2 * m); part('t', m, 0, w - 2 * m, m); part('b', m, h - m, w - 2 * m, m);
-  part('l', 0, m, m, h - 2 * m); part('r', w - m, m, m, h - 2 * m);
-  part('tl', 0, 0, m, m); part('tr', w - m, 0, m, m); part('bl', 0, h - m, m, m); part('br', w - m, h - m, m, m);
-  return p;
+function panel(parent, cls = '', dark = true) { // 9-slice from separate painted pieces; sizes to content
+  const p = h('div', parent, 'p9 ' + cls), k = dark ? 'panel_dark_' : 'panel_';
+  for (const n of ['c', 't', 'b', 'l', 'r', 'tl', 'tr', 'bl', 'br']) h('div', p, 'p9-' + n).style.backgroundImage = url(k + n);
+  return h('div', p, 'p9-in');
 }
-function ribbon(parent, r, text, size = 32) {
-  const p = el('div', parent, r, 'nopt');
-  img(p, [0, 0, 72, r[3]], 'ribbon_left'); img(p, [r[2] - 72, 0, 72, r[3]], 'ribbon_right');
-  const b = el('div', p, [72, 0, r[2] - 144, r[3]], ''); b.style.background = url('ribbon_body') + ' repeat-x'; b.style.backgroundSize = 'auto 100%';
-  const t = el('div', p, [0, 0, r[2], r[3] - 8], 'out display', text); Object.assign(t.style, { fontSize: size + 'px', display: 'flex', alignItems: 'center', justifyContent: 'center' });
-  return p;
+function ribbon(parent, text, cls = '') {
+  const p = h('div', parent, 'rib nopt ' + cls);
+  img(p, 'ribbon_left', 'rib-l'); const b = h('div', p, 'rib-b'); b.style.backgroundImage = url('ribbon_body'); img(p, 'ribbon_right', 'rib-r');
+  h('div', p, 'rib-t out display', text); return p;
 }
-function text(parent, r, s, size = 22, align = 'left', cls = '') { const t = el('div', parent, r, 'nopt ' + cls, s); t.style.fontSize = size + 'px'; t.style.textAlign = align; return t; }
+const setT = (e, s) => { s = String(s); if (e._t !== s) { e._t = s; e.textContent = s; } };
+const setC = (e, c) => { if (e._c !== c) { e._c = c; e.className = c; } };
 
 // ---------- settings ----------
 let muted = localStorage.getItem('td.muted') === '1';
@@ -73,6 +76,7 @@ async function loadSound(k) {
 }
 async function loadAll(onProgress, only) {
   if (!actx) { actx = new AudioContext(); master = actx.createGain(); master.gain.value = muted ? 0 : 0.7; master.connect(actx.destination); }
+  for (const d of Object.values(M.ui || {})) if (d?.src) for (const st of d.states || ['']) new Image().src = uiSrc(d, st);
   const jobs = only ? [...only] : [...Object.keys(M.images), ...Object.keys(M.sounds).filter(k => M.sounds[k]).map(k => 's:' + k)];
   let done = 0;
   await Promise.all(jobs.map(j => (j.startsWith('s:') ? loadSound(j.slice(2)) : loadImage(j)).then(() => onProgress(++done / jobs.length))));
@@ -113,53 +117,141 @@ const EN = {
   knight: { name: 'Knight', hp: 300, sp: .7, gold: 15, lives: 2, h: 100 },
   troll: { name: 'Troll', hp: 1500, sp: .5, gold: 50, lives: 5, h: 192, boss: true, sprite: 'enemy_troll_boss' },
 };
-const HP_SCALE = 0.05; // spec: 0.08. Lowered after headless runs showed waves 9–10 unbeatable on this path
+const HP_SCALE = 0.06; // spec: 0.08. Lowered (QA TD-5) so an average plan just wins
 const WAVES = [
   [[['goblin', 8]], 1.2], [[['goblin', 12]], 1.0], [[['orc', 6], ['goblin', 6]], 1.2], [[['orc', 10]], 1.0],
   [[['goblin', 15], ['knight', 4]], .8], [[['orc', 12], ['goblin', 6]], .9], [[['knight', 6], ['orc', 10]], 1.1],
-  [[['goblin', 25]], .5], [[['knight', 10], ['orc', 10]], 1.0], [[['knight', 12], ['orc', 15], ['goblin', 20], ['troll', 1]], 1.1] // spec interval 0.7; widened so the troll finale is beatable,
+  [[['goblin', 25]], .5], [[['knight', 7], ['orc', 10]], 1.3] /* spec: 10 knights @1.0s; eased in TD-5 */, [[['knight', 12], ['orc', 15], ['goblin', 20], ['troll', 1]], 1.1] // spec interval 0.7; widened so the troll finale is beatable,
 ];
-const PATH_TILES = [[0, 2], [1, 2], [2, 2], [3, 2], [4, 2], [4, 3], [4, 4], [4, 5], [5, 5], [6, 5], [7, 5], [8, 5], [8, 4], [8, 3], [8, 2], [9, 2], [10, 2], [11, 2], [11, 3], [11, 4], [12, 4], [13, 4], [14, 4]];
-const PATH_ART = { '4,2': 'dirt_path_corner_sw', '4,5': 'dirt_path_corner_ne', '8,5': 'dirt_path_corner_nw', '8,2': 'dirt_path_corner_se', '11,2': 'dirt_path_corner_sw', '11,4': 'dirt_path_corner_ne', '4,3': 'v', '4,4': 'v', '8,4': 'v', '8,3': 'v', '11,3': 'v' };
-const SPOTS = [[2, 1], [2, 3], [3, 4], [5, 3], [6, 2], [6, 4], [7, 6], [9, 4], [9, 6], [10, 1], [10, 3], [12, 3], [12, 5], [13, 2]];
-const DECOR = [['signpost', 60, 250], ['tree_1', 64, 180], ['tree_1', 1500, 190], ['tree_3', 1790, 250], ['tree_2', 1840, 700], ['bush_1', 900, 700], ['rock_3', 1700, 840], ['flowers', 760, 190], ['fence', 1600, 640], ['bush_2', 560, 880]];
-const PTS = [[-64, 2 * TS + 64], ...PATH_TILES.map(([c, r]) => [c * TS + 64, r * TS + 64]), [W + 64, 4 * TS + 64]];
-const SEG = []; let PLEN = 0;
-for (let i = 1; i < PTS.length; i++) { const l = Math.hypot(PTS[i][0] - PTS[i - 1][0], PTS[i][1] - PTS[i - 1][1]); SEG.push([PLEN, l]); PLEN += l; }
+
+// ---------- maps: src/maps/*.json (SPEC-mobile.md §1), picked by viewport aspect with hysteresis (§2) ----------
+const MAPS = Object.fromEntries(Object.values(import.meta.glob('./maps/*.json', { eager: true })).map(m => [m.default.id, m.default]));
+const VARIANT = a => a < .8 ? 'portrait' : a <= 1.25 ? 'square' : 'landscape';
+let variant = null;
+function pickVariant() { // switch only when the aspect is >0.03 past a threshold
+  const a = innerWidth / innerHeight, hy = .03;
+  if (!variant || (VARIANT(a - hy) !== variant && VARIANT(a + hy) !== variant)) variant = VARIANT(a);
+  return variant;
+}
+const pickMap = () => MAPS[Q.get('map')] || MAPS[pickVariant()];
+let MAP, COLS, ROWS, PATH_TILES, PATH_SET, SPOTS, SPOT_SET, PTS, SEG, PLEN, SPOT_ORDER;
+const DIRS = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+function pathArt(i) { // corner/straight tile derived from the neighbours (SPEC.md §2), so maps only list path cells
+  const P = [MAP.entry, ...PATH_TILES, MAP.exit], [c, r] = P[i + 1], side = ([x, y]) => Object.keys(DIRS).find(k => DIRS[k][0] === x - c && DIRS[k][1] === y - r);
+  const s = new Set([side(P[i]), side(P[i + 2])]);
+  if (s.has('e') && s.has('w')) return 'dirt_path_straight_h'; if (s.has('n') && s.has('s')) return 'dirt_path_straight_v';
+  return 'dirt_path_corner_' + (s.has('n') ? 'n' : 's') + (s.has('e') ? 'e' : 'w');
+}
+function setMap(m) { // safe mid-run: towers are keyed by spot index (index-matched across variants), enemies keep path fraction
+  const frac = g && PLEN ? g.enemies.map(e => e.dist / PLEN) : null;
+  MAP = m; COLS = m.cols; ROWS = m.rows; PATH_TILES = m.path; SPOTS = m.spots;
+  SPOT_SET = new Set(SPOTS.map(s => s + ''));
+  PATH_SET = new Map(PATH_TILES.map((p, i) => [p + '', pathArt(i)]));
+  const ctr = ([c, r]) => [c * TS + 64, r * TS + 64];
+  PTS = [ctr(m.entry), ...PATH_TILES.map(ctr), ctr(m.exit)];
+  SEG = []; PLEN = 0;
+  for (let i = 1; i < PTS.length; i++) { const l = Math.hypot(PTS[i][0] - PTS[i - 1][0], PTS[i][1] - PTS[i - 1][1]); SEG.push([PLEN, l]); PLEN += l; }
+  SPOT_ORDER = SPOTS.map((s, i) => [i, Math.min(...PATH_TILES.map((p, j) => Math.max(Math.abs(p[0] - s[0]), Math.abs(p[1] - s[1])) === 1 ? j : 99))]).sort((a, b) => a[1] - b[1] || a[0] - b[0]).map(a => a[0]);
+  if (frac) g.enemies.forEach((e, i) => { e.dist = frac[i] * PLEN; [e.x, e.y] = pathPos(e.dist); });
+  if (g) { g.dying = []; g.projs = []; g.arcs = []; g.fx = []; g.parts = []; }
+}
 function pathPos(d) {
   for (let i = 0; i < SEG.length; i++) if (d <= SEG[i][0] + SEG[i][1] || i === SEG.length - 1) {
     const t = Math.min(1, (d - SEG[i][0]) / SEG[i][1]), a = PTS[i], b = PTS[i + 1];
     return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
   }
 }
-// spots in path order (nearest path tile index)
-const SPOT_ORDER = SPOTS.map((s, i) => [i, Math.min(...PATH_TILES.map((p, j) => Math.abs(p[0] - s[0]) + Math.abs(p[1] - s[1]) === 1 ? j : 99))]).sort((a, b) => a[1] - b[1] || a[0] - b[0]).map(a => a[0]);
 const spotC = i => [SPOTS[i][0] * TS + 64, SPOTS[i][1] * TS + 64];
-const plural = (n, name) => `${n} ${name}${n === 1 ? '' : 's'}`;
-const waveLabel = w => [...new Set(WAVES[w - 1][0].map(g => EN[g[0]].name + 's'))].join(' & ');
 
-// ---------- static map layer ----------
-let mapLayer;
-function buildMapLayer() {
-  mapLayer = document.createElement('canvas'); mapLayer.width = W; mapLayer.height = H;
-  const c = mapLayer.getContext('2d');
-  const pathSet = new Set(PATH_TILES.map(p => p + ''));
-  for (let col = 0; col < 15; col++) for (let row = 0; row < 8; row++) {
-    let k = 'grass_' + ((col * 7 + row * 3) % 3 + 1);
-    if (col <= 3 && row >= 6) k = M.lake[col + ',' + row] || 'water';
-    if (pathSet.has(col + ',' + row)) { const a = PATH_ART[col + ',' + row]; k = !a ? 'dirt_path_straight_h' : a === 'v' ? 'dirt_path_straight_v' : a; }
-    c.drawImage(IMG[k], col * TS, row * TS, TS, TS);
+// ---------- terrain layer: ground + decor rules from the map's "terrain" block (swap art via the manifest) ----------
+let mapLayer = null, MAP_EXTRA = 0;
+const hashI = (h, c, r, n) => (((c * h[0] + r * h[1]) % n) + n) % n;
+function cellArt(c, r) {
+  const T = MAP.terrain, key = c + ',' + r, inside = c >= 0 && c < COLS && r >= 0 && r < ROWS;
+  const ground = T.tiles?.[key] || T.ground[hashI(T.groundHash, c, r, T.ground.length)];
+  const art = PATH_SET.get(key); if (art) return { ground: art };
+  if (!inside) for (const [e, p] of [[MAP.entry, PATH_TILES[0]], [MAP.exit, PATH_TILES.at(-1)]]) { // road continues off-map
+    const dx = e[0] - p[0], dy = e[1] - p[1];
+    if (dy === 0 && r === p[1] && (c - p[0]) * dx > 0) return { ground: 'dirt_path_straight_h' };
+    if (dx === 0 && c === p[0] && (r - p[1]) * dy > 0) return { ground: 'dirt_path_straight_v' };
   }
-  for (const [k, x, y] of DECOR) { const i = IMG[k]; c.drawImage(i, x - i.width / 2, y - i.height); }
-  c.fillStyle = T.letterbox; c.fillRect(0, 1024, W, 56);
+  if (SPOT_SET.has(key)) return { ground };
+  let decor;
+  if (T.fixed?.[key]) decor = T.fixed[key];
+  else if (!inside) decor = T.edgeCycle[hashI(T.edgeHash, c, r, T.edgeCycle.length)];
+  else {
+    decor = T.decorCycle[hashI(T.decorHash, c, r, T.decorCycle.length)];
+    let near = false; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const k = (c + dx) + ',' + (r + dy); if (PATH_SET.has(k) || SPOT_SET.has(k)) near = true; }
+    if (near && decor) decor = T.lowSwap?.[decor] || decor;
+  }
+  return { ground, decor, out: !inside };
 }
+const dimCache = new Map();
+function dimOf(k, a) { let c = dimCache.get(k); if (!c) { const i = IMG[k]; c = document.createElement('canvas'); c.width = i.width; c.height = i.height; const x = c.getContext('2d'); x.drawImage(i, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = `rgba(0,0,0,${a})`; x.fillRect(0, 0, c.width, c.height); dimCache.set(k, c); } return c; }
+function buildMapLayer() {
+  if (!IMG.grass_1 || !MAP) return;
+  mapLayer ??= document.createElement('canvas');
+  MAP_EXTRA = L.mode === 'sheet' ? Math.ceil(L.vh * .5) : 0; // room for the portrait pan
+  mapLayer.width = cv.width; mapLayer.height = cv.height + Math.round(MAP_EXTRA * L.dpr);
+  const c = mapLayer.getContext('2d'), d = L.dpr, k = L.k, dim = MAP.terrain.edgeDim ?? 0;
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  const [wx0, wy0] = s2w(0, 0), [wx1, wy1] = s2w(L.vw, L.vh + MAP_EXTRA);
+  const x0 = Math.floor(wx0 / TS) - 1, x1 = Math.ceil(wx1 / TS), y0 = Math.floor(wy0 / TS) - 1, y1 = Math.ceil(wy1 / TS) + 1;
+  c.setTransform(d * k, 0, 0, d * k, d * L.ox, d * L.oy);
+  const cells = [];
+  for (let row = y0; row <= y1; row++) for (let col = x0; col <= x1; col++) { const a = cellArt(col, row); cells.push([col, row, a]); c.drawImage(IMG[a.ground] || IMG.grass_1, col * TS - .5, row * TS - .5, TS + 1, TS + 1); }
+  if (dim) { c.fillStyle = `rgba(0,0,0,${dim})`; for (const [col, row, a] of cells) if (a.out && !PATH_SET.has(col + ',' + row) && a.decor !== undefined) c.fillRect(col * TS - .5, row * TS - .5, TS + 1, TS + 1); }
+  for (let i = 0; i < SPOTS.length; i++) { const [x, y] = spotC(i); c.drawImage(IMG.build_spot, x - 64, y - 64, TS, TS); }
+  for (const [col, row, a] of cells) if (a.decor && IMG[a.decor]) { const im = a.out && dim ? dimOf(a.decor, dim) : IMG[a.decor]; c.drawImage(im, col * TS + 64 - im.width / 2, row * TS + 128 - im.height); }
+}
+
+// ---------- responsive layout: ONE screen<->world transform (SPEC-mobile.md §2) ----------
+// mode: 'sheet' (portrait + square: top bar + bottom sheet), 'rail' (landscape < 1280 px: top bar + 88 px right rail),
+// 'desktop' (landscape >= 1280: SPEC.md layout). Tile s = clamp(min(P.w/cols, P.h/rows), 40, 128); outside the grid = edge fill.
+const L = { vw: 1, vh: 1, dpr: 1, mode: 'desktop', k: 1, s: 128, ox: 0, oy: 0, pan: 0, panTo: 0, u: 1, crest: true, safe: { t: 0, r: 0, b: 0, l: 0 }, hudR: null, barR: null, sheetTop: 1e9 };
+const probe = document.createElement('div'); probe.id = 'safe'; document.body.appendChild(probe);
+const w2s = (x, y) => [L.ox + x * L.k, L.oy - L.pan + y * L.k];
+const s2w = (sx, sy) => [(sx - L.ox) / L.k, (sy - L.oy + L.pan) / L.k];
+let layoutQueued = false;
+function queueLayout() { if (!layoutQueued) { layoutQueued = true; requestAnimationFrame(() => { layoutQueued = false; layout(); }); } }
+function layout() { // all DOM reads happen here (resize / orientation / screen change), never per frame
+  const vw = innerWidth, vh = innerHeight, cs = getComputedStyle(probe);
+  const m = pickMap();
+  if (m !== MAP) { setMap(m); if (screen === 'game' && g && !g.over && !g.paused) setPaused(true); } // mid-run variant switch: towers stay by spot index
+  L.mode = MAP.cols > MAP.rows ? (vw >= 1280 ? 'desktop' : 'rail') : 'sheet';
+  Object.assign(L, { vw, vh, dpr: Math.min(devicePixelRatio || 1, 2) });
+  L.safe = { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+  const a = vw / vh;
+  L.u = L.mode === 'desktop' ? Math.max(1, Math.min(2, vw / 1600, vh / 900)) : 1;
+  L.crest = L.mode !== 'sheet';
+  for (const md of ['sheet', 'rail', 'desktop']) ui.classList.toggle('m-' + md, L.mode === md);
+  ui.classList.toggle('crest', L.crest); ui.classList.toggle('portrait', L.mode === 'sheet'); void a;
+  const P = { x: L.safe.l, y: L.safe.t, w: vw - L.safe.l - L.safe.r - (L.mode === 'rail' && screen === 'game' ? 88 : 0), h: vh - L.safe.t - L.safe.b };
+  const s0 = Math.min(P.w / COLS, P.h / ROWS), s = Math.max(40, Math.min(128, s0));
+  L.s = Math.floor(s * L.dpr) / L.dpr; L.k = L.s / TS; // whole device px per tile: no seams
+  L.ox = P.x + (P.w - COLS * L.s) / 2; L.oy = P.y + (P.h - ROWS * L.s) / 2;
+  rs.setProperty('--u', L.u); rs.setProperty('--s', L.s + 'px');
+  cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
+  cv.width = Math.round(vw * L.dpr); cv.height = Math.round(vh * L.dpr);
+  const rect = e => { if (!e || !e.isConnected) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+  L.hudR = screen === 'game' ? rect(H$.hud) : null; L.barR = screen === 'game' ? rect(H$.bar) : null;
+  buildMapLayer();
+  if (g && screen === 'game' && g.selSpot != null) openSel(g.selSpot, true);
+}
+addEventListener('resize', queueLayout); addEventListener('orientationchange', () => { queueLayout(); if (screen === 'game' && g && !g.over && !g.paused) setPaused(true); });
+visualViewport?.addEventListener('resize', queueLayout);
+// no accidental zoom / pull-to-refresh on the game surface
+for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+cv.addEventListener('dblclick', e => e.preventDefault());
+let lastTouchEnd = 0;
+cv.addEventListener('touchend', e => { const n = performance.now(); if (n - lastTouchEnd < 350) e.preventDefault(); lastTouchEnd = n; }, { passive: false });
 
 // ---------- game state ----------
 let screen = 'title', g = null;
 function newGame() {
   g = {
     gold: DEBUG && Q.get('gold') ? +Q.get('gold') : 250, lives: 20, wave: 0, phase: 'build', countdown: 15,
-    queue: [], spawnT: 0, interval: 1, enemies: [], towers: {}, projs: [], fx: [], arcs: [],
+    queue: [], spawnT: 0, interval: 1, enemies: [], towers: {}, projs: [], fx: [], arcs: [], dying: [], parts: [],
     speed: 1, paused: false, over: false, stats: { kills: 0, gold: 0, time: 0 }, slot: null, radial: null, sel: null,
     focus: -1, hover: -1, undo: null, total: 0, remaining: 0, shownGold: 250, heartFlash: 0,
   };
@@ -179,29 +271,31 @@ function startWave() {
 function spawn(type) {
   const d = EN[type], hp = d.boss ? d.hp : Math.floor(d.hp * (1 + HP_SCALE * (g.wave - 1)));
   if (d.boss) toast(`The ${d.name} is coming!`, 3000, 'avatar_troll');
-  g.enemies.push({ type, d, hp, max: hp, dist: 0, slow: 0, slowT: 0, x: -64, y: PTS[0][1] });
+  g.enemies.push({ type, d, hp, max: hp, dist: 0, slow: 0, slowT: 0, x: PTS[0][0], y: PTS[0][1], walkT: Math.random(), face: 'right', flash: 0 });
 }
 function damage(e, n) {
   if (e.dead) return;
-  e.hp -= n;
+  e.hp -= n; e.flash = .12;
   if (e.hp <= 0) {
     play('enemy_death_' + (1 + Math.floor(Math.random() * 3)));
-    e.dead = true; g.remaining--; g.stats.kills++; addGold(e.d.gold);
-    addFx('fx_death_puff', e.x, e.y); if (!reduced) addFx('fx_coin_pop', e.x, e.y - 40);
+    e.dead = true; g.remaining--; g.stats.kills++; addGold(e.d.gold); g.dying.push({ type: e.type, x: e.x, y: e.y, face: e.face, t: 0 });
+    addFx(M.sprites?.['enemy.' + e.type]?.deathFx || 'fx_death_puff', e.x, e.y); if (!reduced) addFx('fx_coin_pop', e.x, e.y - 40);
   }
 }
 function addFx(k, x, y) { g.fx.push({ k, x, y, t: 0 }); }
+function sparks(x, y, col, n = 7) { if (reduced) n = 3; for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = 120 + Math.random() * 220; g.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, t: 0, life: .25 + Math.random() * .2, col }); } }
+const SPARK = { archer: '#f2deb0', cannon: '#ffb347', mage: '#c58bff', frost: '#bfefff', tesla: '#fff27a' };
 function inRange(t, e) { const [cx, cy] = spotC(t.spot); return Math.hypot(e.x - cx, e.y - cy) <= t.st[3] * TS; }
 function fire(t) {
   const inR = g.enemies.filter(e => !e.dead && inRange(t, e));
   if (!inR.length) return false;
   const doomed = inR.filter(e => (e.pend || 0) < e.hp), live = TW[t.type].splash || !doomed.length ? inR : doomed; // avoid overkill
   const tgt = live.reduce((a, b) => b.dist > a.dist ? b : a), D = TW[t.type], [cx, cy] = spotC(t.spot);
-  play('fire_' + t.type);
+  play('fire_' + t.type); t.atk = .16;
   if (t.type === 'tesla') {
     let dmg = t.st[1], cur = tgt, from = [cx, cy - 70]; const hit = new Set();
     for (let i = 0; i < D.chain[t.lv - 1] && cur; i++) {
-      hit.add(cur); g.arcs.push({ a: from, b: [cur.x, cur.y], t: .12 }); damage(cur, dmg); addFx(D.fx, cur.x, cur.y); if (i === 0) play(D.hit);
+      hit.add(cur); g.arcs.push({ a: from, b: [cur.x, cur.y], t: .12 }); damage(cur, dmg); addFx(D.fx, cur.x, cur.y); sparks(cur.x, cur.y, SPARK.tesla, 4); if (i === 0) play(D.hit);
       from = [cur.x, cur.y]; dmg *= 0.8;
       const c = cur; cur = g.enemies.filter(e => !e.dead && !hit.has(e) && Math.hypot(e.x - c.x, e.y - c.y) <= 1.5 * TS).sort((a, b) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b.x - c.x, b.y - c.y))[0];
     }
@@ -215,7 +309,7 @@ function hitProj(p) {
     p.tgt.pend -= p.dmg; damage(p.tgt, t.st[1]);
     if (D.slow) { const [pct, dur] = D.slow[t.lv - 1], e = p.tgt; if (e.slowT <= 0 || pct >= e.slow) { e.slow = pct; e.slowT = dur; } }
   }
-  if (D.fx) addFx(D.fx, p.x, p.y);
+  if (D.fx) addFx(D.fx, p.x, p.y); sparks(p.x, p.y, SPARK[t.type], D.fx ? 4 : 8);
   play(D.hit);
 }
 function step(dt) {
@@ -228,10 +322,12 @@ function step(dt) {
     if (e.dead) continue;
     if (e.slowT > 0) e.slowT -= dt; else e.slow = 0;
     e.dist += e.d.sp * TS * (1 - e.slow) * dt;
-    [e.x, e.y] = pathPos(e.dist);
+    const ox = e.x, oy = e.y; [e.x, e.y] = pathPos(e.dist);
+    const fx = e.x - ox, fy = e.y - oy; if (Math.abs(fx) + Math.abs(fy) > .01) e.face = Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 'left' : 'right') : (fy < 0 ? 'up' : 'down');
+    e.walkT += dt * e.d.sp * (1 - e.slow); if (e.flash > 0) e.flash -= dt;
     if (e.dist >= PLEN) { e.dead = e.leaked = true; g.remaining--; (g.leaks ??= {})[e.type] = (g.leaks[e.type] || 0) + 1; g.lives = Math.max(0, g.lives - e.d.lives); g.heartFlash = .2; play('life_lost'); }
   }
-  for (const t of Object.values(g.towers)) { t.cd -= dt; if (t.cd <= 0 && fire(t)) t.cd = 1 / t.st[2]; }
+  for (const t of Object.values(g.towers)) { if (t.atk > 0) t.atk -= dt; t.cd -= dt; if (t.cd <= 0 && fire(t)) t.cd = 1 / t.st[2]; }
   const sp = 8 * TS * dt;
   for (const p of g.projs) {
     if (!p.tgt.dead) { p.tx = p.tgt.x; p.ty = p.tgt.y; }
@@ -240,7 +336,9 @@ function step(dt) {
   }
   g.projs = g.projs.filter(p => !p.done);
   g.enemies = g.enemies.filter(e => !e.dead);
-  for (const f of g.fx) f.t += dt; g.fx = g.fx.filter(f => f.t < (reduced ? .15 : 4 / 12));
+  for (const f of g.fx) f.t += dt; g.fx = g.fx.filter(f => f.t < animDur(f.k));
+  for (const d of g.dying) d.t += dt; g.dying = g.dying.filter(d => d.t < deathDur(d.type));
+  for (const q of g.parts) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 600 * dt; } g.parts = g.parts.filter(q => q.t < q.life);
   for (const a of g.arcs) a.t -= dt; g.arcs = g.arcs.filter(a => a.t > 0);
   if (g.lives <= 0) return endGame(false);
   if (g.phase === 'wave' && !g.queue.length && !g.enemies.length) {
@@ -260,12 +358,12 @@ function build(spot, type) {
 function upgrade(spot) {
   const t = g.towers[spot]; if (!t || t.lv >= 3) return false;
   const c = TW[t.type].lv[t.lv][0]; if (g.gold < c) { play('ui_error'); return false; }
-  play('upgrade'); g.gold -= c; t.invested += c; t.lv++; t.st = TW[t.type].lv[t.lv - 1]; if (g.sel === spot) openUpgrade(spot); return true;
+  play('upgrade'); g.gold -= c; t.invested += c; t.lv++; t.st = TW[t.type].lv[t.lv - 1]; if (g.sel === spot) openSel(spot, true); buzz(); return true;
 }
 function sell(spot) {
   const t = g.towers[spot]; if (!t) return false;
   const r = Math.floor(t.invested * .7); g.gold += r; play('sell'); delete g.towers[spot];
-  g.undo = { t, r, until: performance.now() + 3000 }; closePanels(); toast(`Sold for ${r}. Press Z to undo`, 3000); return true;
+  g.undo = { t, r, until: performance.now() + 3000 }; closePanels(); toast(`Sold for ${r}`, 3000, null, ['Undo', undoSell]); buzz(); return true;
 }
 function undoSell() {
   const u = g.undo; if (!u || performance.now() > u.until || g.towers[u.t.spot]) return;
@@ -273,266 +371,395 @@ function undoSell() {
 }
 
 // ---------- UI: title ----------
-function clearUI() { ui.innerHTML = ''; }
+function clearUI() { ui.innerHTML = ''; H$ = {}; }
 function titleScreen() {
-  screen = 'title'; g = null; clearUI(); modal = null;
-  img(ui, [0, 0, W, H], 'title_bg', 'nopt');
-  const ov = el('div', ui, [0, 0, W, H], 'nopt'); ov.style.background = T.letterbox; ov.style.opacity = .4;
-  panel(ui, [640, 240, 640, 600], false);
-  ribbon(ui, [600, 180, 720, 80], M.logo && IMG[M.logo] ? '' : 'TD', 56);
-  if (M.logo && IMG[M.logo]) img(ui, [860, 20, 200, 194], M.logo, 'nopt');
+  screen = 'title'; g = null; clearUI(); modal = null; layout();
+  img(ui, 'title_bg', 'nopt bgcover'); h('div', ui, 'dim nopt').style.opacity = .4;
+  const wrap = h('div', ui, 'modal title'), card = h('div', wrap, 'tcard');
+  if (M.logo) img(card, M.logo, 'nopt logo');
+  ribbon(card, M.logo ? '' : 'TD', 'trib');
+  const inn = panel(card, 'tpanel', false), box = h('div', inn, 'col');
   setMusic('menu');
-  const foot = text(ui, [640, 780, 640, 40], 'Hold the road. 10 waves. 20 lives.', 22, 'center'); foot.style.color = T.textDark;
-  const box = el('div', ui, [0, 0, 0, 0]);
+  const foot = h('div', inn, 'foot', 'Hold the road. 10 waves. 20 lives.');
   const loaded = Object.keys(IMG).length > 0 && !failed.size;
   if (loaded) return titleButtons(box);
-  const lp = el('div', box, [0, 0, 0, 0], 'nopt');
-  const frame = img(lp, [704, 500, 512, 96], 'bar_frame');
-  const fill = el('div', lp, [704 + 80, 500 + 32, 0, 32], ''); fill.style.background = url('progress_fill'); fill.style.backgroundSize = '352px 32px';
-  const lt = text(lp, [640, 440, 640, 40], 'Loading… 0%', 22, 'center'); lt.style.color = T.textDark;
-  const prog = p => { fill.style.width = 352 * p + 'px'; lt.textContent = `Loading… ${Math.round(p * 100)}%`; };
-  loadAll(prog, failed.size ? new Set(failed) : null).then(() => {
-    if (failed.size) {
-      lp.remove();
-      const er = text(box, [680, 420, 560, 120], "Some game files didn't load. Check your connection and try again.", 22, 'center'); er.style.color = T.textDark;
-      const rb = btn(box, [816, 560, 288, 72], 'Retry', () => titleScreen()); rb.focus();
-      return;
-    }
-    buildMapLayer(); fontReady.then(titleScreen);
+  const lt = h('div', box, 'loadtxt', 'Loading… 0%'), fr = h('div', box, 'loadbar'); fr.style.backgroundImage = url('bar_frame');
+  const fill = h('div', fr, 'loadfill'); fill.style.backgroundImage = url('progress_fill');
+  void foot;
+  loadAll(p => { fill.style.width = 100 * p + '%'; lt.textContent = `Loading… ${Math.round(p * 100)}%`; }, failed.size ? new Set(failed) : null).then(() => {
+    if (failed.size) { box.innerHTML = ''; h('div', box, 'loadtxt', "Some game files didn't load. Check your connection and try again."); btn(box, 'Retry', () => titleScreen()).focus(); return; }
+    fontReady.then(titleScreen);
   });
-  void frame;
 }
 function titleButtons(box) {
-  const play = btn(box, [816, 420, 288, 72], 'Play', startGame);
-  btn(box, [816, 512, 288, 72], 'How to play', howTo);
-  const snd = btn(box, [816, 604, 288, 72], '', () => setMuted(!muted));
-  const mot = btn(box, [816, 696, 288, 72], '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); onSettings(); });
+  const pl = btn(box, 'Play', startGame);
+  btn(box, 'How to play', howTo);
+  const snd = btn(box, '', () => setMuted(!muted));
+  const mot = btn(box, '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); onSettings(); });
   onSettings = () => { snd.textContent = muted ? 'Sound: Off' : 'Sound: On'; mot.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; };
-  onSettings(); play.focus();
+  onSettings(); pl.focus();
 }
 let modal = null;
+function mkModal(parent = ui) { const m = h('div', parent, 'modal'); h('div', m, 'dim'); return m; }
 function howTo() {
   const prev = document.activeElement;
-  modal = el('div', ui, [0, 0, W, H]); el('div', modal, null, 'dim');
-  panel(modal, [560, 200, 800, 680]);
-  text(modal, [620, 260, 680, 400], 'Click a build spot, pick a tower, and stop enemies before they reach the exit. Each leaked enemy costs lives. Earn gold from kills and wave clears. Upgrade or sell a tower by clicking it.', 22, 'left').style.lineHeight = '36px';
-  const ok = btn(modal, [816, 760, 288, 72], 'Got it', () => { modal.remove(); modal = null; prev?.focus(); });
+  modal = mkModal(); const inn = panel(modal, 'mpanel');
+  h('div', inn, 'mtext', 'Tap or click a build spot, pick a tower, and stop enemies before they reach the exit. Each leaked enemy costs lives. Earn gold from kills and wave clears. Tap a tower to see its range, upgrade or sell it.');
+  const ok = btn(h('div', inn, 'row'), 'Got it', () => { modal.remove(); modal = null; prev?.focus(); });
   modal.close = ok.onclick; ok.focus();
 }
 
-// ---------- UI: game ----------
+// ---------- UI: game (SPEC-mobile.md §3) ----------
 let H$ = {};
+const live = (s) => { if (H$.live) H$.live.textContent = s; };
+function stat(p, icon, cls = '') { const s = h('div', p, 'stat ' + cls), i = img(s, icon, 'nopt hudico'); return [i, h('span', s, 'out display num')]; }
 function startGame() {
-  screen = 'game'; newGame(); clearUI(); H$ = {}; setMusic('battle');
-  // HUD
-  const hud = el('div', ui, [0, 0, W, 0], 'nopt');
-  img(hud, [0, 0, 96, 104], 'hud_cap_left'); img(hud, [1824, 0, 96, 104], 'hud_cap_right');
-  const body = el('div', hud, [96, 0, 1728, 80], ''); body.style.background = url('hud_body') + ' repeat-x';
-  img(hud, [112, 8, 64, 64], 'icon_gold', 'nopt hudico'); H$.gold = text(hud, [184, 20], '', 28, 'left', 'out display');
-  H$.heart = img(hud, [312, 8, 64, 64], 'icon_heart', 'nopt hudico'); H$.lives = text(hud, [384, 20], '', 28, 'left', 'out display');
-  img(hud, [512, 8, 64, 64], 'icon_skull', 'nopt hudico'); H$.left = text(hud, [584, 20], '', 28, 'left', 'out display');
-  img(hud, [820, 0, 280, 192], 'hud_center'); img(hud, [928, 8, 64, 64], 'icon_wave', 'nopt hudico');
-  H$.wave = text(hud, [820, 110, 280, 40], '', 28, 'center', 'out display');
-  img(hud, [1180, 16, 256, 48], 'bar_frame');
-  H$.wfill = el('div', hud, [1220, 32, 176, 16], ''); H$.wfill.style.background = url('wave_fill');
-  H$.pause = btn(ui, [1456, 12, 112, 56], '', () => setPaused(!g.paused), 'Pause');
-  H$.speed = btn(ui, [1576, 12, 112, 56], '', () => { g.speed = g.speed === 1 ? 2 : 1; }, 'Game speed 1x');
-  H$.mute = btn(ui, [1696, 12, 112, 56], '', () => setMuted(!muted), 'Mute sound');
+  screen = 'game'; newGame(); clearUI(); setMusic('battle');
+  const hud = H$.hud = h('div', ui, 'hud'); hud.style.backgroundImage = url('hud_body');
+  const a = h('div', hud, 'hgrp');
+  H$.gold = stat(a, 'icon_gold')[1]; [H$.heart, H$.lives] = stat(a, 'icon_heart'); H$.leftS = stat(a, 'icon_skull', 'skull'); H$.left = H$.leftS[1];
+  const wc = h('div', hud, 'hgrp wavechip'); img(wc, 'icon_wave', 'nopt hudico'); H$.wave2 = h('span', wc, 'out display num');
+  const c = h('div', hud, 'hgrp right');
+  const pf = H$.wbar = h('div', c, 'wbar nopt'); pf.style.backgroundImage = url('bar_frame'); H$.wfill = h('div', pf, 'wfill'); H$.wfill.style.backgroundImage = url('wave_fill');
+  H$.speed = btn(c, '', () => { g.speed = g.speed === 1 ? 2 : 1; }, 'Game speed 1x', 'hb');
+  H$.pause = btn(c, '', () => setPaused(!g.paused), 'Pause', 'hb');
+  H$.mute = btn(c, '', () => setMuted(!muted), 'Mute sound', 'hb mutebtn');
+  const crest = h('div', ui, 'crestbox nopt'); img(crest, 'hud_center', 'nopt crestimg full'); const cc = h('img', crest, 'nopt crestimg compact'); cc.src = uiSrc(M.ui.compactCrest); cc.alt = ''; rs.setProperty('--crestY', M.ui.compactCrest.textY + 'px'); H$.wave = h('div', crest, 'out display crestt');
   onSettings = () => { setIcon(H$.mute, muted ? 'sound_off' : 'sound_on'); H$.mute.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); };
   onSettings();
-  // build bar
-  const bar = el('div', ui, [440, 968, 1040, 112], 'nopt');
-  Object.assign(bar.style, { borderStyle: 'solid', borderWidth: '0 32px', borderImage: `${url('actionbar_body')} 0 32 fill / 0 32px stretch` });
-  img(ui, [240, 780, 220, 300], 'actionbar_end_left'); img(ui, [1460, 780, 220, 300], 'actionbar_end_right');
-  H$.slots = ORDER.map((k, i) => slotBtn(ui, [480 + 112 * i, 976], k, () => { g.slot = g.slot === k ? null : k; if (g.radial != null) openRadial(g.radial); }));
-  H$.next = text(ui, [700, 1000, 360], '', 18, 'right', 'out');
-  H$.start = btn(ui, [1240, 992, 192, 64], 'Start wave', startWave);
-  H$.toast = el('div', ui, [0, 0, 0, 0], 'nopt');
-  H$.panel = el('div', ui, [0, 0, 0, 0]);
-  cv.focus();
+  // bottom bar (sheet + desktop modes) / right rail (rail mode): next wave + start
+  const bar = H$.bar = h('div', ui, 'bbar'); bar.style.borderImageSource = url('actionbar_body');
+  H$.slots = ORDER.map(k => slotBtn(bar, k, () => { g.slot = g.slot === k ? null : k; if (g.selSpot != null && !g.towers[g.selSpot]) pickCard(k); }, 'barslot'));
+  H$.next = h('div', bar, 'next out');
+  H$.start = btn(bar, 'Start wave', startWave, 'Start wave', 'start');
+  H$.toast = h('div', ui, 'toasts');
+  H$.sel = h('div', ui, 'selwrap');
+  H$.tip = h('div', ui, 'tipb nopt'); H$.tip.hidden = true;
+  H$.live = h('div', ui, 'sr'); H$.live.setAttribute('aria-live', 'polite');
+  layout(); cv.focus({ preventScroll: true });
 }
-function slotBtn(parent, [x, y], k, fn) {
-  const b = el('button', parent, [x, y], 'slot'); b.onclick = fn;
+function slotBtn(parent, k, fn, cls = '') {
+  const b = h('button', parent, 'slot ' + cls); b.onclick = fn;
   const name = `${TW[k].name} Tower (${ORDER.indexOf(k) + 1})`; b.title = name; b.setAttribute('aria-label', name);
-  img(b, null, 'icon_' + k, 'nopt'); el('span', b, null, 'hk', ORDER.indexOf(k) + 1); el('span', b, null, 'cost', TW[k].lv[0][0]);
+  img(b, 'icon_' + k, 'nopt'); h('span', b, 'hk', ORDER.indexOf(k) + 1); h('span', b, 'cost', TW[k].lv[0][0]);
+  longPress(b, () => TW[k].name + ' Tower — ' + TW[k].lv.map((l, i) => `Lv${i + 1}: ${l[0]}g, Dmg ${l[1]}, ${l[2]}/s, Rng ${l[3]}`).join(' · '));
   b.k = k; return b;
 }
-function closePanels() { g.radial = null; g.sel = null; H$.panel.innerHTML = ''; }
-function openRadial(spot) {
-  closePanels(); g.radial = spot;
-  const [cx] = spotC(spot), top = SPOTS[spot][1] * TS;
-  const x = Math.max(16, Math.min(1904 - 600, cx - 300)), y = Math.max(96, Math.min(952 - 136, top - 136));
-  const p = panel(H$.panel, [x, y, 600, 136]);
-  const tip = text(p, [0, 108, 600, 24], '', 18, 'center');
-  const show = k => { const c = TW[k].lv[0][0]; tip.textContent = `${TW[k].name} Tower (${ORDER.indexOf(k) + 1}) — ${g.gold >= c ? c + ' gold' : 'Need ' + c}`; };
-  const bs = ORDER.map((k, i) => { const b = slotBtn(p, [28 + 112 * i, 8], k, () => build(spot, k)); b.onmouseenter = b.onfocus = () => show(k); b.radial = true; return b; });
-  H$.radialSlots = bs;
-  const f = bs[ORDER.indexOf(g.slot || 'archer')]; f.focus(); show(f.k);
+function closePanels() { if (!g) return; g.selSpot = null; g.ghost = null; g.radial = g.sel = null; if (H$.sel) H$.sel.innerHTML = ''; H$.up = null; H$.buildBtn = null; L.panTo = 0; }
+const spotS = i => w2s(...spotC(i));
+const ov = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+const spotRect = i => { const [sx, sy] = spotS(i), hs = L.s / 2; return { x: sx - hs, y: sy - hs, w: 2 * hs, h: 2 * hs }; };
+function placeNear(p, spot) { // floating panel next to the spot: never over it, inside the safe area, avoiding HUD/bar
+  const [sx, sy] = spotS(spot), hs = L.s / 2, m = 6, w = p.offsetWidth, hh = p.offsetHeight, s = L.safe;
+  const sp = spotRect(spot);
+  const cl = (x, y) => ({ x: Math.max(s.l + m, Math.min(L.vw - s.r - m - w, x)), y: Math.max(s.t + m, Math.min(L.vh - s.b - m - hh, y)), w, h: hh });
+  const c = [cl(sx - w / 2, sy - hs - m - hh), cl(sx - w / 2, sy + hs + m), cl(sx + hs + m, sy - hh / 2), cl(sx - hs - m - w, sy - hh / 2)];
+  const cost = r => ov(r, sp) * 1e4 + (L.hudR ? ov(r, L.hudR) : 0) + (L.barR ? ov(r, L.barR) : 0);
+  const best = c.reduce((a, b) => cost(b) < cost(a) ? b : a);
+  p.style.left = best.x + 'px'; p.style.top = best.y + 'px';
 }
-function openUpgrade(spot) {
-  closePanels(); g.sel = spot;
-  const t = g.towers[spot], [c, r] = SPOTS[spot], D = TW[t.type];
-  const x = c >= 11 ? c * TS - 16 - 360 : c * TS + TS + 16, y = Math.max(96, Math.min(952 - 300, r * TS - 60));
-  const p = panel(H$.panel, [x, y, 360, 300]);
-  img(p, [24, 24, 96, 96], 'avatar_' + t.type, 'nopt');
-  text(p, [136, 28, 210], `${D.name} Tower — Lv ${t.lv}`, 22).style.lineHeight = '26px';
-  text(p, [136, 84, 210], `Damage ${t.st[1]} · Rate ${t.st[2]}/s · Range ${t.st[3]}`, 18);
-  if (t.lv < 3) {
-    const n = D.lv[t.lv], nl = text(p, [24, 136, 320], '', 18); nl.innerHTML = `Next: <span style="color:${T.good}">Damage ${n[1]}</span> · ` + (n[2] > t.st[2] ? `<span style="color:${T.good}">Rate ${n[2]}/s</span>` : `Rate ${n[2]}/s`) + ` · <span style="color:${T.good}">Range ${n[3]}</span>`;
-  } else text(p, [24, 136, 320], 'Max level reached', 18);
-  H$.up = btn(p, [24, 216, 150, 56], '', () => upgrade(spot)); H$.up.style.fontSize = '18px';
-  H$.sell = btn(p, [186, 216, 150, 56], `Sell ${Math.floor(t.invested * .7)}`, () => sell(spot)); H$.sell.style.fontSize = '18px';
-  refreshUpgrade(); (H$.up.disabled ? H$.sell : H$.up).focus();
+// Selection UI. sheet: bottom sheet; rail: slots/actions in the rail + detail card; desktop: floating panel by the spot.
+function openSel(spot, keep) {
+  const prevType = g.ghost?.spot === spot ? g.ghost.type : null;
+  closePanels(); g.selSpot = spot; g.focus = spot;
+  const t = g.towers[spot]; if (t) g.sel = spot; else g.radial = spot;
+  const wrap = H$.sel, mode = L.mode;
+  const box = panel(wrap, 'selp sel-' + mode + (t ? ' upg' : ' radial')), p = box.parentElement;
+  if (mode === 'sheet') { const hd = h('img', box, 'handle nopt'); hd.src = uiSrc(M.ui.sheetHandle); hd.alt = ''; }
+  let main = box, info = box;
+  if (mode === 'rail') { info = panel(wrap, 'card'); }
+  const title = h('div', info, 'stitle out display', t ? `${TW[t.type].name} Tower — Lv ${t.lv}` : 'Build here');
+  H$.detail = null;
+  if (!t) {
+    const row = h('div', main, 'cards');
+    H$.cards = H$.radialSlots = ORDER.map(k => slotBtn(row, k, () => { if (g.ghost?.type === k) return build(spot, k) && buzz(); pickCard(k); }, 'card'));
+    H$.detail = h('div', info, 'detail', 'Pick a tower to preview it.');
+    const acts = h('div', mode === 'rail' ? info : main, 'acts');
+    btn(acts, 'Cancel', () => { closePanels(); cv.focus(); }, 'Cancel', 'cancel');
+    H$.buildBtn = btn(acts, 'Build', () => { if (g.ghost && build(spot, g.ghost.type)) buzz(); }, 'Build', 'confirm');
+    H$.buildBtn.disabled = true;
+    const pre = prevType || g.slot; if (pre) pickCard(pre);
+    if (!keep) (pre ? H$.buildBtn : H$.cards[0]).focus({ preventScroll: true });
+  } else {
+    const D = TW[t.type], top = h('div', main, 'urow');
+    img(top, 'avatar_' + t.type, 'nopt av');
+    const tx = h('div', mode === 'rail' ? info : top, 'utext'); h('div', tx, 'small', `Damage ${t.st[1]} · Rate ${t.st[2]}/s · Range ${t.st[3]}`);
+    if (t.lv < 3) { const n = D.lv[t.lv], nl = h('div', tx, 'small'); nl.innerHTML = `Next: <span style="color:${T.good}">Damage ${n[1]}</span> · Rate ${n[2]}/s · <span style="color:${T.good}">Range ${n[3]}</span>`; }
+    else h('div', tx, 'small', 'Max level reached');
+    const acts = h('div', mode === 'rail' ? info : main, 'acts');
+    H$.sell = btn(acts, `Sell ${Math.floor(t.invested * .7)}`, () => sell(spot), null, 'sellb');
+    H$.up = btn(acts, '', () => upgrade(spot), null, 'confirm');
+    H$.close = btn(acts, 'Close', () => { closePanels(); cv.focus(); }, 'Close', 'cancel');
+    refreshUpgrade();
+    if (!keep) (H$.up.disabled ? H$.sell : H$.up).focus({ preventScroll: true });
+  }
+  void title;
+  if (mode === 'desktop') placeNear(p, spot);
+  else if (mode === 'rail') { const cardP = info.parentElement; cardP.classList.toggle('flip', SPOTS[spot][0] >= Math.ceil(COLS * 2 / 3)); }
+  else { // portrait: pan the map so the spot sits one tile above the sheet
+    const top = L.vh - p.offsetHeight, [, sy] = w2s(...spotC(spot)), cur = L.pan;
+    const need = sy + cur - L.pan + L.s / 2 + L.s - top; L.panTo = Math.max(0, Math.min(MAP_EXTRA, cur + need)); if (need < 0) L.panTo = Math.max(0, cur + need);
+    if (reduced) L.pan = L.panTo;
+  }
+  live(t ? `${TW[t.type].name} tower selected` : `Spot ${spot + 1} selected`);
 }
+function pickCard(k) {
+  if (g.selSpot == null || g.towers[g.selSpot]) return;
+  g.ghost = { spot: g.selSpot, type: k }; g.slot = k;
+  const c = TW[k].lv[0][0], [, d, r, rg] = TW[k].lv[0], okG = g.gold >= c;
+  if (H$.detail) setT(H$.detail, `${TW[k].name} — Damage ${d} · Rate ${r}/s · Range ${rg}`);
+  if (H$.buildBtn) { setT(H$.buildBtn, okG ? `Build ${c}` : `Need ${c}`); H$.buildBtn.disabled = !okG; H$.buildBtn.setAttribute('aria-label', `Build ${TW[k].name} Tower, ${c} gold`); }
+}
+const plural = (n, name) => `${n} ${name}${n === 1 ? '' : 's'}`;
+const waveLabel = w => [...new Set(WAVES[w - 1][0].map(g => EN[g[0]].name + 's'))].join(' & ');
+const buzz = () => { try { navigator.vibrate?.(10); } catch {} return true; };
+// back-compat names used by tests/keyboard
+const openRadial = (s, keep) => openSel(s, keep), openUpgrade = (s, keep) => openSel(s, keep);
 function refreshUpgrade() {
   const t = g.towers[g.sel]; if (!t || !H$.up) return;
-  if (t.lv >= 3) { H$.up.textContent = 'Max level'; H$.up.disabled = true; return; }
+  if (t.lv >= 3) { setT(H$.up, 'Max level'); H$.up.disabled = true; return; }
   const c = TW[t.type].lv[t.lv][0], ok = g.gold >= c;
-  const lab = ok ? `Upgrade ${c}` : `Need ${c}`; if (H$.up.textContent !== lab) H$.up.textContent = lab; H$.up.disabled = !ok;
+  setT(H$.up, ok ? `Upgrade ${c}` : `Need ${c}`); if (H$.up.disabled !== !ok) H$.up.disabled = !ok;
 }
 function setIcon(b, name) { // manifest icon image, or text glyph placeholder
   if (b.icon === name) return false; b.icon = name; b.innerHTML = '';
-  const ic = M.icons[name]; if (ic.image && IMG[ic.image]) img(b, null, ic.image, 'nopt ico'); else b.textContent = ic.text; return true;
+  const ic = M.icons[name]; if (ic.image && IMG[ic.image]) img(b, ic.image, 'nopt ico'); else b.textContent = ic.text; return true;
+}
+// long-press (500 ms) replaces hover: shows a tooltip bubble
+let lpT = null;
+function showTip(text, x, y) {
+  const t = H$.tip; if (!t) return; t.textContent = text; t.hidden = false; const tl = h('img', t, 'tail nopt'); tl.src = uiSrc(M.ui.tooltipTail); tl.alt = '';
+  const w = t.offsetWidth, hh = t.offsetHeight;
+  t.style.left = Math.max(L.safe.l + 6, Math.min(L.vw - L.safe.r - 6 - w, x - w / 2)) + 'px';
+  t.style.top = Math.max(L.safe.t + 6, y - hh - 40) + 'px';
+  clearTimeout(showTip.t); showTip.t = setTimeout(() => { t.hidden = true; }, 2500);
+}
+function longPress(el, textFn) {
+  el.addEventListener('pointerdown', e => { clearTimeout(lpT); const x = e.clientX, y = e.clientY; lpT = setTimeout(() => { const s = textFn(x, y); if (s) { showTip(s, x, y); el._lp = true; } }, 500); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(ev, () => clearTimeout(lpT));
+  el.addEventListener('click', e => { if (el._lp) { el._lp = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
 }
 let toastTimer;
-function toast(s, ms = 2000, portrait) {
-  if (!H$.toast) return; H$.toast.innerHTML = ''; const t = el('div', H$.toast, null, 'toast', s);
-  if (portrait && IMG[portrait]) { t.style.top = '230px'; t.prepend(img(t, null, portrait, 'nopt portrait')); }
+function toast(s, ms = 2000, portrait, action) {
+  if (!H$.toast) return; H$.toast.innerHTML = ''; const t = h('div', H$.toast, 'toast', s);
+  if (portrait && IMG[portrait]) t.prepend(img(t, portrait, 'nopt portrait'));
+  if (action) { const b = btn(t, M.icons.undo?.text || action[0], () => { action[1](); H$.toast.innerHTML = ''; }, action[0], 'undo'); if (M.icons.undo?.image && IMG[M.icons.undo.image]) setIcon(b, 'undo'); }
   clearTimeout(toastTimer); toastTimer = setTimeout(() => H$.toast && (H$.toast.innerHTML = ''), ms);
 }
 function banner(s) {
-  const r = ribbon(ui, [600, 400, 720, 80], s, 32);
+  const r = ribbon(ui, s, 'banner');
   if (reduced) return setTimeout(() => r.remove(), 2100);
-  r.style.top = '-80px'; r.style.transition = 'top .3s ease-out, opacity .3s';
-  requestAnimationFrame(() => requestAnimationFrame(() => r.style.top = '400px'));
-  setTimeout(() => r.style.opacity = 0, 1800); setTimeout(() => r.remove(), 2100);
+  r.classList.add('in'); setTimeout(() => r.style.opacity = 0, 1800); setTimeout(() => r.remove(), 2100);
 }
 function setPaused(v) {
   if (!g || g.over) return;
   g.paused = v; modal?.remove(); modal = null;
   if (!v) { cv.focus(); return; }
-  modal = el('div', ui, [0, 0, W, H]); el('div', modal, null, 'dim');
-  panel(modal, [760, 340, 400, 400]);
-  text(modal, [760, 380, 400, 60], 'Paused', 56, 'center', 'out display');
-  const res = btn(modal, [856, 480, 208, 64], 'Resume', () => setPaused(false));
+  modal = mkModal(); const inn = panel(modal, 'mpanel narrow');
+  h('div', inn, 'out display big', 'Paused');
+  const col = h('div', inn, 'col');
+  const res = btn(col, 'Resume', () => setPaused(false));
+  const snd = btn(col, '', () => setMuted(!muted)), mot = btn(col, '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); setLbl(); });
+  const setLbl = () => { snd.textContent = muted ? 'Sound: Off' : 'Sound: On'; mot.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; }; setLbl();
+  const prevS = onSettings; onSettings = () => { prevS(); setLbl(); };
   const confirm = (fn) => {
-    const c = el('div', modal, [0, 0, W, H]); el('div', c, null, 'dim'); panel(c, [710, 400, 500, 240]);
-    text(c, [710, 440, 500, 40], 'Lose this run?', 28, 'center');
-    btn(c, [770, 540, 160, 64], 'Yes', fn); const no = btn(c, [990, 540, 160, 64], 'No', () => { c.remove(); modal.close = () => setPaused(false); res.focus(); });
+    const c = mkModal(modal), ci = panel(c, 'mpanel narrow'); h('div', ci, 'mtext center', 'Lose this run?');
+    const r = h('div', ci, 'row'); btn(r, 'Yes', fn); const no = btn(r, 'No', () => { c.remove(); modal.close = () => setPaused(false); res.focus(); });
     modal.close = no.onclick; no.focus();
   };
-  btn(modal, [856, 560, 208, 64], 'Restart', () => confirm(() => { modal = null; startGame(); }));
-  btn(modal, [856, 640, 208, 64], 'Quit to title', () => confirm(() => { modal = null; titleScreen(); }));
-  modal.close = () => setPaused(false); res.focus();
+  btn(col, 'Restart', () => confirm(() => { modal = null; startGame(); }));
+  btn(col, 'Quit to title', () => confirm(() => { modal = null; titleScreen(); }));
+  modal.close = () => setPaused(false); modal.pause = true; modal.addEventListener('remove', () => {}); res.focus();
 }
 function endGame(win) {
   g.over = true; closePanels(); setMusic(null); play(win ? 'stinger_win' : 'stinger_lose');
   const best = JSON.parse(localStorage.getItem('td.best') || 'null'), cur = { wave: g.wave, lives: win ? g.lives : 0 };
   if (!best || cur.wave > best.wave || (cur.wave === best.wave && cur.lives > best.lives)) localStorage.setItem('td.best', JSON.stringify(cur));
-  modal = el('div', ui, [0, 0, W, H]); el('div', modal, null, 'dim');
-  panel(modal, [560, 240, 800, 600]); ribbon(modal, [600, 200, 720, 80], win ? 'Victory!' : 'Defeat', 32);
-  text(modal, [600, 340, 720, 40], win ? `The road holds. Lives left: ${g.lives} / 20` : `The enemy broke through on wave ${g.wave}.`, 28, 'center');
+  modal = mkModal(); const wrap = h('div', modal, 'tcard'); ribbon(wrap, win ? 'Victory!' : 'Defeat', 'trib'); const inn = panel(wrap, 'mpanel');
+  h('div', inn, 'mtext center big2', win ? `The road holds. Lives left: ${g.lives} / 20` : `The enemy broke through on wave ${g.wave}.`);
   const s = Math.floor(g.stats.time);
-  text(modal, [600, 440, 720, 40], `Enemies defeated: ${g.stats.kills} · Gold earned: ${g.stats.gold.toLocaleString('en-US')} · Time: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`, 22, 'center');
-  const a = btn(modal, [656, 680, 288, 72], win ? 'Play again' : 'Retry', () => { modal = null; startGame(); });
-  btn(modal, [976, 680, 288, 72], 'Title', () => { modal = null; titleScreen(); });
+  h('div', inn, 'mtext center', `Enemies defeated: ${g.stats.kills} · Gold earned: ${g.stats.gold.toLocaleString('en-US')} · Time: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
+  const r = h('div', inn, 'row');
+  const a = btn(r, win ? 'Play again' : 'Retry', () => { modal = null; startGame(); });
+  btn(r, 'Title', () => { modal = null; titleScreen(); });
   modal.result = win ? 'win' : 'lose'; a.focus();
 }
 
-// ---------- HUD refresh ----------
+// ---------- HUD refresh (writes only on change) ----------
 let lastFrame = performance.now();
 function refreshHUD(realDt) {
   const gd = g.gold - g.shownGold;
   g.shownGold = reduced || Math.abs(gd) < 1 ? g.gold : g.shownGold + gd * Math.min(1, realDt / 0.1);
-  H$.gold.textContent = Math.round(g.shownGold);
-  H$.lives.textContent = g.lives; H$.lives.style.color = g.lives < 5 ? T.lowLives : '';
-  g.heartFlash -= realDt; H$.heart.style.filter = g.heartFlash > 0 ? `drop-shadow(0 0 0 ${T.bad}) brightness(.6) sepia(1) saturate(10) hue-rotate(-30deg)` : '';
-  H$.left.textContent = g.phase === 'wave' ? g.remaining : 0;
-  H$.wave.textContent = `Wave ${g.wave}/${WAVES.length}`;
-  H$.wfill.style.width = (g.phase === 'wave' && g.total ? 176 * g.remaining / g.total : 0) + 'px';
-  setIcon(H$.pause, g.paused ? 'play' : 'pause'); H$.pause.setAttribute('aria-label', g.paused ? 'Resume' : 'Pause');
+  setT(H$.gold, Math.round(g.shownGold));
+  setT(H$.lives, g.lives); setC(H$.lives, 'out display num' + (g.lives < 5 ? ' low' : ''));
+  g.heartFlash -= realDt; setC(H$.heart, 'nopt hudico' + (g.heartFlash > 0 ? ' flash' : ''));
+  setT(H$.left, g.phase === 'wave' ? g.remaining : 0);
+  setT(H$.wave, `Wave ${g.wave}/${WAVES.length}`); setT(H$.wave2, `${g.wave}/${WAVES.length}`);
+  const fw = (g.phase === 'wave' && g.total ? Math.round(100 * g.remaining / g.total) : 0) + '%'; if (H$.wfill._w !== fw) { H$.wfill._w = fw; H$.wfill.style.width = fw; }
+  if (setIcon(H$.pause, g.paused ? 'play' : 'pause')) H$.pause.setAttribute('aria-label', g.paused ? 'Resume' : 'Pause');
   if (setIcon(H$.speed, g.speed === 1 ? 'speed1' : 'speed2')) H$.speed.setAttribute('aria-label', `Game speed ${g.speed}x`);
-  for (const b of [...H$.slots, ...(g.radial != null ? H$.radialSlots : [])]) b.className = 'slot' + (g.gold < TW[b.k].lv[0][0] ? ' locked' : (!b.radial && g.slot === b.k) || (b.radial && g.slot === b.k) ? ' sel' : '');
-  const st = g.phase === 'build' ? `Start wave (${Math.ceil(g.countdown)})` : 'Start wave';
-  if (H$.start.textContent !== st) H$.start.textContent = st; H$.start.disabled = g.phase !== 'build';
-  const nw = g.phase === 'build' ? g.wave + 1 : g.wave + 1;
-  H$.next.textContent = nw <= WAVES.length ? 'Next: ' + WAVES[nw - 1][0].map(([t, n]) => plural(n, EN[t].name)).join(', ') : '';
+  for (const b of H$.slots) setC(b, 'slot barslot' + (g.gold < TW[b.k].lv[0][0] ? ' locked' : g.slot === b.k ? ' sel' : ''));
+  if (g.radial != null && H$.cards) for (const b of H$.cards) setC(b, 'slot card' + (g.ghost?.type === b.k ? ' sel' : g.gold < TW[b.k].lv[0][0] ? ' locked' : ''));
+  setC(H$.bar, 'bbar' + (g.phase === 'wave' ? ' inwave' : ''));
+  if (L.pan !== L.panTo) { const d = L.panTo - L.pan; L.pan = Math.abs(d) < 1 ? L.panTo : L.pan + d * Math.min(1, realDt / .08); }
+  setT(H$.start, g.phase === 'build' ? (L.mode === 'rail' ? `Start ${Math.ceil(g.countdown)}` : `Start wave (${Math.ceil(g.countdown)})`) : 'Start wave'); if (H$.start.disabled !== (g.phase !== 'build')) H$.start.disabled = g.phase !== 'build';
+  const nw = g.wave + 1;
+  if (g.phase === 'build') setT(H$.next, nw <= WAVES.length ? 'Next: ' + WAVES[nw - 1][0].map(([t, n]) => plural(n, EN[t].name)).join(', ') : ''); else setT(H$.next, `${g.remaining} left`);
   refreshUpgrade();
 }
 
+// ---------- animation system (data-driven: manifest.anims + manifest.sprites) ----------
+// anim def: { sheet | sheets{dir:imgKey}, frameWidth, frameHeight, frames, rows{dir:row}, fps, anchor[ax,ay] | anchorPx[x,y], loop }
+const ANIM = M.anims || {}, SPR = M.sprites || {};
+const sprite = (id, state) => { const a = SPR[id]?.[state]; return a ? ANIM[a] : null; };
+const animDur = k => { const a = ANIM[k]; return a ? (reduced ? .15 : (a.frames || 1) / (a.fps || 12)) : .3; };
+const DEATH = .45;
+const deathDur = type => { const a = sprite('enemy.' + type, 'death'); return a ? (a.frames || 1) / (a.fps || 12) : DEATH; };
+function frameOf(a, t, dir) { // -> {i:image, sx, sy, sw, sh, ax, ay}
+  const n = a.frames || 1, f = a.loop === false ? Math.min(n - 1, Math.floor(t * (a.fps || 12))) : Math.floor(t * (a.fps || 12)) % n;
+  const dirs = a.sheets ? a.sheets : null, key = dirs ? (dirs[dir] || dirs[dir === 'up' || dir === 'down' ? 'right' : dir] || Object.values(dirs)[0]) : a.sheet;
+  const i = IMG[key]; if (!i) return null;
+  const fw = a.frameWidth || i.width / n, fh = a.frameHeight || (a.rows ? i.height / Object.keys(a.rows).length : i.height);
+  const row = a.rows ? (a.rows[dir] ?? a.rows[dir === 'up' || dir === 'down' ? 'right' : dir] ?? 0) : 0;
+  const [ax, ay] = a.anchorPx ? a.anchorPx : [(a.anchor?.[0] ?? .5) * fw, (a.anchor?.[1] ?? 1) * fh];
+  return { i, sx: f * fw, sy: row * fh, sw: fw, sh: fh, ax, ay, frames: n };
+}
+const flashCache = new Map();
+function whiteOf(fr) { // white silhouette of one frame, cached (procedural hit flash)
+  const key = fr.i.src + fr.sx + ',' + fr.sy; let c = flashCache.get(key);
+  if (!c) { c = document.createElement('canvas'); c.width = fr.sw; c.height = fr.sh; const x = c.getContext('2d'); x.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, 0, 0, fr.sw, fr.sh); x.globalCompositeOperation = 'source-atop'; x.fillStyle = '#fff'; x.fillRect(0, 0, fr.sw, fr.sh); flashCache.set(key, c); }
+  return c;
+}
+function at(x, y, s = 1) { const [sx, sy] = w2s(x, y), d = L.dpr * L.k * s; ctx.setTransform(d, 0, 0, d, L.dpr * sx, L.dpr * sy); }
+function drawFrame(fr, sx = 1, sy = 1, alpha = 1, flash = 0) {
+  if (!fr) return;
+  ctx.globalAlpha = alpha; ctx.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, -fr.ax * sx, -fr.ay * sy, fr.sw * sx, fr.sh * sy);
+  if (flash > 0) { ctx.globalAlpha = alpha * flash; ctx.drawImage(whiteOf(fr), -fr.ax * sx, -fr.ay * sy, fr.sw * sx, fr.sh * sy); }
+  ctx.globalAlpha = 1;
+}
+const stillDef = key => ({ sheet: key, frames: 1, anchor: [.5, 1] });
+function enemyFrame(type, state, t, dir) {
+  const a = sprite('enemy.' + type, state) || (state === 'walk' ? stillDef(EN[type].sprite || 'enemy_' + type) : null);
+  return a && frameOf(a, t, dir);
+}
+
 // ---------- render ----------
-function drawImgC(k, x, y, w, h) { const i = IMG[k]; ctx.drawImage(i, x - (w ?? i.width) / 2, y - (h ?? i.height) / 2, w ?? i.width, h ?? i.height); }
+let cvFocused = false;
 function render() {
-  ctx.clearRect(0, 0, W, H);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
   if (screen !== 'game' || !g) return;
-  ctx.drawImage(mapLayer, 0, 0);
+  if (mapLayer) ctx.drawImage(mapLayer, 0, Math.round(-L.pan * L.dpr));
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
-  SPOTS.forEach(([c, r]) => ctx.drawImage(IMG.build_spot, c * TS, r * TS, TS, TS));
   const items = [];
-  for (const t of Object.values(g.towers)) { const [c, r] = SPOTS[t.spot]; items.push([r * TS + TS - 8, () => ctx.drawImage(IMG[`tower_${t.type}_l${t.lv}`], c * TS, r * TS + TS - 8 - 160, 128, 160)]); }
-  for (const e of g.enemies) { const i = IMG[e.d.sprite || 'enemy_' + e.type]; items.push([e.y + 36, () => ctx.drawImage(i, e.x - i.width / 2, e.y + 36 - i.height)]); }
+  for (const t of Object.values(g.towers)) {
+    const [x, y] = spotC(t.spot), id = `tower.${t.type}.${t.lv}`, atk = t.atk > 0 ? t.atk / .16 : 0;
+    const aa = atk > 0 && sprite(id, 'attack'), fr = aa ? frameOf(aa, .16 - t.atk, 'right') : frameOf(sprite(id, 'idle') || stillDef(`tower_${t.type}_l${t.lv}`), g.stats.time, 'right');
+    items.push([w2s(x, y + 56)[1], () => { // recoil fallback when there is no attack sheet: dip + squash
+      at(x, y + 56 + (aa ? 0 : 5 * atk)); drawFrame(fr, aa ? 1 : 1 + .04 * atk, aa ? 1 : 1 - .07 * atk);
+      if (!aa && atk > .5 && !reduced) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = SPARK[t.type]; ctx.globalAlpha = (atk - .5) * 1.2; ctx.beginPath(); ctx.arc(0, -fr.ay + 34, 18, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+    }]);
+  }
+  for (const e of g.enemies) {
+    const fr = enemyFrame(e.type, 'walk', e.walkT * 2, e.face), proc = !fr || fr.frames <= 1, ph = Math.sin(e.walkT * 2 * Math.PI * 1.6);
+    const hit = e.flash > 0 && sprite('enemy.' + e.type, 'hit'), hf = hit ? frameOf(hit, .12 - e.flash, e.face) : null;
+    items.push([w2s(e.x, e.y + 36)[1], () => { // walk fallback: bob + squash
+      at(e.x, e.y + 36 - (proc && !reduced ? Math.abs(ph) * 7 : 0));
+      if (hf) drawFrame(hf); else drawFrame(fr, proc ? 1 + .035 * ph : 1, proc ? 1 - .035 * ph : 1, 1, e.flash > 0 ? e.flash / .12 * .85 : 0);
+    }]);
+  }
+  for (const d of g.dying) {
+    const a = sprite('enemy.' + d.type, 'death'), q = d.t / deathDur(d.type);
+    items.push([w2s(d.x, d.y + 36)[1], () => {
+      if (a) { at(d.x, d.y + 36); drawFrame(frameOf(a, d.t, d.face)); return; }
+      const fr = enemyFrame(d.type, 'walk', 0, d.face); at(d.x, d.y + 36); drawFrame(fr, 1 - .5 * q, 1 - .6 * q, 1 - q, q < .3 ? 1 - q / .3 : 0); // fade + shrink
+    }]);
+  }
   items.sort((a, b) => a[0] - b[0]).forEach(i => i[1]());
-  for (const p of g.projs) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a || 0); drawImgC(TW[p.t.type].proj, 0, 0); ctx.restore(); }
-  for (const a of g.arcs) { const [x1, y1] = a.a, [x2, y2] = a.b; ctx.save(); ctx.translate(x1, y1); ctx.rotate(Math.atan2(y2 - y1, x2 - x1)); ctx.drawImage(IMG.projectile_lightning_arc, 0, -20, Math.hypot(x2 - x1, y2 - y1), 40); ctx.restore(); }
-  for (const f of g.fx) { const fr = reduced ? 2 : Math.min(3, Math.floor(f.t * 12)); ctx.drawImage(IMG[f.k], fr * 128, 0, 128, 128, f.x - 64, f.y - 64, 128, 128); }
+  for (const p of g.projs) {
+    const a = sprite('projectile.' + TW[p.t.type].proj.replace('projectile_', ''), 'fly'), fr = frameOf(a || { sheet: TW[p.t.type].proj, frames: 1, anchor: [.5, .5] }, g.stats.time, 'right');
+    at(p.x, p.y); ctx.rotate(p.a || 0); drawFrame(fr);
+  }
+  for (const r of g.arcs) { // lightning: anchored at its left end, stretched to the target
+    const [x1, y1] = r.a, [x2, y2] = r.b, a = sprite('projectile.lightning_arc', 'fly'), fr = frameOf(a || { sheet: 'projectile_lightning_arc', frames: 1, anchorPx: [0, 20] }, .12 - r.t, 'right');
+    if (!fr) continue; at(x1, y1); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
+    const len = Math.hypot(x2 - x1, y2 - y1); ctx.globalAlpha = Math.min(1, r.t / .06); ctx.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, 0, -fr.ay, len, fr.sh); ctx.globalAlpha = 1;
+  }
+  for (const f of g.fx) { const a = ANIM[f.k] || { sheet: f.k, frameWidth: 128, frameHeight: 128, frames: 4, fps: 12, anchor: [.5, .5], loop: false }; at(f.x, f.y); drawFrame(frameOf(a, reduced ? .17 : f.t, 'right')); }
+  if (g.parts.length) { ctx.globalCompositeOperation = 'lighter'; for (const q of g.parts) { at(q.x, q.y); ctx.globalAlpha = 1 - q.t / q.life; ctx.fillStyle = q.col; ctx.fillRect(-4, -4, 8, 8); } ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
   for (const e of g.enemies) {
     if (e.hp >= e.max) continue;
-    const y = e.y + 36 - IMG[e.d.sprite || 'enemy_' + e.type].height - 8 - 6;
-    ctx.fillStyle = T.outline; ctx.fillRect(e.x - 24, y, 48, 6);
-    ctx.fillStyle = e.hp / e.max < .3 ? T.bad : T.good; ctx.fillRect(e.x - 24, y, 48 * Math.max(0, e.hp / e.max), 6);
+    const fr = enemyFrame(e.type, 'walk', 0, e.face), hh = fr ? fr.ay : EN[e.type].h;
+    at(e.x, e.y + 36); ctx.fillStyle = T.outline; ctx.fillRect(-24, -hh - 14, 48, 6);
+    ctx.fillStyle = e.hp / e.max < .3 ? T.bad : T.good; ctx.fillRect(-24, -hh - 14, 48 * Math.max(0, e.hp / e.max), 6);
   }
   // overlays
-  if (g.slot || g.radial != null) SPOTS.forEach(([c, r], i) => ctx.drawImage(g.towers[i] ? IMG.place_invalid : IMG.place_valid, c * TS, r * TS, TS, TS));
-  const rangeOf = i => { const t = g.towers[i]; if (t) return t.st[3]; if (i === g.radial) return TW[g.slot || 'archer'].lv[0][3]; };
-  for (const i of new Set([g.hover, g.sel, g.focus, g.radial])) {
+  if (g.radial != null) { at(...spotC(g.radial)); ctx.drawImage(IMG.place_valid, -64, -64, TS, TS); }
+  if (g.slot && g.radial == null && L.mode === 'desktop') SPOTS.forEach((_, i) => { at(...spotC(i)); ctx.drawImage(g.towers[i] ? IMG.place_invalid : IMG.place_valid, -64, -64, TS, TS); });
+  if (g.ghost && !g.towers[g.ghost.spot]) { const [x, y] = spotC(g.ghost.spot), fr = frameOf(sprite(`tower.${g.ghost.type}.1`, 'idle') || stillDef(`tower_${g.ghost.type}_l1`), 0, 'right'); at(x, y + 56); ctx.globalCompositeOperation = 'source-over'; drawFrame(fr, 1, 1, .5); }
+  const rangeOf = i => { const t = g.towers[i]; if (t) return t.st[3]; if (i === g.radial && g.ghost) return TW[g.ghost.type].lv[0][3]; };
+  for (const i of new Set([g.hover, g.sel, cvFocused ? g.focus : -1, g.radial])) {
     if (i == null || i < 0) continue; const rr = rangeOf(i); if (!rr || (i === g.hover && !g.towers[i] && i !== g.radial)) continue;
-    const [cx, cy] = spotC(i); drawImgC('range_circle', cx, cy, 2 * rr * TS, 2 * rr * TS);
+    at(...spotC(i)); ctx.drawImage(IMG.range_circle, -rr * TS, -rr * TS, 2 * rr * TS, 2 * rr * TS);
   }
-  if (g.focus >= 0) { const [c, r] = SPOTS[g.focus]; ctx.strokeStyle = T.focus; ctx.lineWidth = 3; ctx.strokeRect(c * TS + 2, r * TS + 2, TS - 4, TS - 4); }
+  if (cvFocused && g.focus >= 0) { at(...spotC(g.focus)); ctx.strokeStyle = T.focus; ctx.lineWidth = 6; ctx.strokeRect(-60, -60, 120, 120); }
 }
 function loop(now) {
   const real = Math.min(.1, (now - lastFrame) / 1000); lastFrame = now;
   if (screen === 'game' && g) {
     if (!g.paused && !g.over) { let dt = real * g.speed * FF; while (dt > 0 && !g.over) { const s = Math.min(dt, 1 / 60); step(s); dt -= s; } }
-    refreshHUD(real);
+    if (H$.gold) refreshHUD(real);
   }
   render(); requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
-// ---------- input ----------
-function spotAt(ev) {
-  const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width, y = (ev.clientY - r.top) * H / r.height;
-  return SPOTS.findIndex(([c, rr]) => x >= c * TS && x < c * TS + TS && y >= rr * TS && y < rr * TS + TS);
+// ---------- input: pointer events (mouse, touch, pen) through the same screen->world transform ----------
+let lastPtr = 'mouse';
+addEventListener('pointerdown', e => { lastPtr = e.pointerType || 'mouse'; }, true);
+function spotAtXY(x, y) { // nearest spot centre within max(28 CSS px, half a tile): >= 56 px targets even at s = 44
+  let best = -1, bd = Math.max(28, L.s / 2);
+  SPOTS.forEach((_, i) => { const [sx, sy] = spotS(i), d = Math.hypot(sx - x, sy - y); if (d <= bd) { bd = d; best = i; } });
+  return best;
 }
 function activateSpot(i) {
   if (i < 0) return closePanels();
-  if (g.towers[i]) openUpgrade(i); else openRadial(i);
+  g.focus = i; openSel(i);
 }
-cv.addEventListener('mousemove', ev => { if (g) g.hover = spotAt(ev); });
-cv.addEventListener('click', ev => { if (screen === 'game' && g && !modal) activateSpot(spotAt(ev)); });
+cv.addEventListener('pointermove', ev => { if (g && ev.pointerType === 'mouse') g.hover = spotAtXY(ev.clientX, ev.clientY); });
+cv.addEventListener('pointerleave', () => { if (g) g.hover = -1; });
+longPress(cv, (x, y) => { if (!g) return; const i = spotAtXY(x, y); if (i < 0) return; const t = g.towers[i]; return t ? `${TW[t.type].name} Lv ${t.lv} — Damage ${t.st[1]} · Rate ${t.st[2]}/s · Range ${t.st[3]} · Sell ${Math.floor(t.invested * .7)}` : 'Empty build spot — tap to build'; });
+cv.addEventListener('click', ev => { if (screen === 'game' && g && !modal) activateSpot(spotAtXY(ev.clientX, ev.clientY)); });
+cv.addEventListener('focus', () => { cvFocused = true; if (g && g.focus < 0) g.focus = SPOT_ORDER[0]; });
+cv.addEventListener('blur', () => { cvFocused = false; });
 addEventListener('contextmenu', ev => { if (screen === 'game') { ev.preventDefault(); if (g && !modal) { closePanels(); g.slot = null; } } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && screen === 'game' && g && !g.paused && !g.over) setPaused(true); });
+function moveFocus(k) { // nearest build spot in the arrow's direction (screen space)
+  const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[k];
+  if (g.focus < 0) { g.focus = SPOT_ORDER[0]; return; }
+  const [c0, r0] = SPOTS[g.focus]; let best = -1, bs = 1e9;
+  SPOTS.forEach(([c, r], i) => { const dx = c - c0, dy = r - r0, along = dx * d[0] + dy * d[1], across = Math.abs(dx * d[1] - dy * d[0]); if (i === g.focus || along <= 0) return; const sc = along + across * 2; if (sc < bs) { bs = sc; best = i; } });
+  if (best >= 0) g.focus = best;
+}
 addEventListener('keydown', ev => {
   const k = ev.key;
   if (k === 'm' || k === 'M') return setMuted(!muted);
   if (screen === 'title') { if (k === 'Escape' && modal) modal.close(); return; }
   if (!g) return;
+  if ((k === 'p' || k === 'P') && !g.over && (!modal || modal.pause)) return setPaused(!g.paused); // true toggle, also from the pause modal
   if (modal) { if (k === 'Escape' && modal.close) modal.close(); return; }
   const onBtn = document.activeElement?.tagName === 'BUTTON';
-  if (k >= '1' && k <= '5') { const t = ORDER[+k - 1]; if (g.radial != null) build(g.radial, t); else g.slot = g.slot === t ? null : t; }
-  else if (k.startsWith('Arrow')) {
-    ev.preventDefault(); const n = SPOT_ORDER.length, cur = SPOT_ORDER.indexOf(g.focus);
-    const d = k === 'ArrowLeft' || k === 'ArrowUp' ? -1 : 1; g.focus = SPOT_ORDER[cur < 0 ? 0 : (cur + d + n) % n]; cv.focus();
-  } else if (k === 'Enter' && !onBtn && g.focus >= 0) { ev.preventDefault(); activateSpot(g.focus); }
+  if (k >= '1' && k <= '5') { const t = ORDER[+k - 1]; if (g.radial != null) pickCard(t); else g.slot = g.slot === t ? null : t; }
+  else if (k.startsWith('Arrow') && !onBtn) { ev.preventDefault(); cv.focus(); moveFocus(k); }
+  else if (k === 'Enter' && !onBtn && g.focus >= 0) { ev.preventDefault(); activateSpot(g.focus); }
   else if (k === 'u' || k === 'U') { if (g.sel != null) upgrade(g.sel); }
   else if (k === 's' || k === 'S') { if (g.sel != null) sell(g.sel); }
   else if (k === 'z' || k === 'Z') undoSell();
   else if (k === ' ') { ev.preventDefault(); startWave(); }
-  else if (k === 'p' || k === 'P') setPaused(true);
   else if (k === 'f' || k === 'F') g.speed = g.speed === 1 ? 2 : 1;
   else if (k === 'Escape') { if (g.radial != null || g.sel != null) { closePanels(); cv.focus(); } else if (g.slot) g.slot = null; else setPaused(true); }
 });
 
-if (DEBUG) window.td = { played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, SPOTS };
-fontReady.then(titleScreen);
+if (DEBUG) window.td = { played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, get map() { return MAP.id; }, get PATHLEN() { return PLEN; }, MAPS, setMap, layout, pathArt, L, spotS, s2w, w2s, spotAtXY };
+layout(); fontReady.then(titleScreen);
+
+mobileCSS();
