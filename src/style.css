@@ -1,0 +1,31 @@
+html,body{margin:0;height:100%;background:#141019;overflow:hidden}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;font-weight:bold;color:var(--text);font-size:22px;user-select:none}
+#cv{position:absolute;inset:0;image-rendering:auto;outline:none}
+#ui{position:absolute;inset:0;pointer-events:none}
+#ui *{box-sizing:border-box}
+#ui > *, .pe{pointer-events:auto}
+.abs{position:absolute}
+
+.nopt{pointer-events:none}
+button.b{position:absolute;min-width:112px;font:inherit;color:var(--text);font-size:22px;padding:0;background:none;cursor:pointer;
+ border-style:solid;border-width:22px 36px;border-image:var(--button_normal) 22 36 fill / 22px 36px stretch;
+ display:flex;align-items:center;justify-content:center;white-space:nowrap;text-shadow:0 2px 0 var(--outline)}
+button.b>span{margin:-22px -36px;}
+button.b:hover,button.b:focus-visible{border-image-source:var(--button_hover)}
+button.b:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+button.b:active{border-image-source:var(--button_pressed)}
+button.b:disabled{border-image-source:var(--button_disabled);cursor:default;color:#9a8c78}
+button.slot{position:absolute;width:96px;height:96px;padding:0;border:0;background:var(--slot_normal);cursor:pointer;font:inherit}
+button.slot.sel{background-image:var(--slot_selected)}
+button.slot.locked{background-image:var(--slot_locked)}
+button.slot:focus-visible,button.slot:hover{outline:3px solid var(--focus);outline-offset:2px}
+button.slot img{position:absolute;left:16px;top:16px;width:64px;height:64px;image-rendering:auto}
+button.slot .hk{position:absolute;left:6px;top:4px;font-size:18px;color:var(--text);text-shadow:0 0 2px var(--outline),0 0 2px var(--outline)}
+button.slot .cost{position:absolute;right:6px;top:72px;font-size:18px;color:var(--cost);text-shadow:0 0 2px var(--outline),0 0 2px var(--outline),0 0 2px var(--outline)}
+.out{text-shadow:-2px 0 var(--outline),2px 0 var(--outline),0 -2px var(--outline),0 2px var(--outline)}
+.num{font-size:28px}
+.dim{position:absolute;inset:0;background:rgba(20,16,25,.6)}
+.toast{position:absolute;left:760px;top:200px;width:400px;text-align:center;padding:8px;background:var(--panelDark);border:2px solid #f2deb0;border-radius:6px}
+.display{font-family:var(--display);font-weight:normal;letter-spacing:.02em}
+button.b .ico{width:40px;height:40px;margin:-22px -36px;}
+.toast .portrait{width:96px;height:96px;display:block;margin:0 auto 4px}
