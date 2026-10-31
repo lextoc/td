@@ -105,11 +105,11 @@ let onSettings = () => {};
 // ---------- data ----------
 const ORDER = ['archer', 'cannon', 'mage', 'frost', 'tesla'];
 const TW = { // per level: [cost, dmg, rate, range]
-  archer: { name: 'Archer', lv: [[70, 12, 1.25, 2.5], [60, 18, 1.4, 2.75], [90, 26, 1.6, 3]], proj: 'projectile_arrow', fx: null, hit: 'hit_arrow' },
-  cannon: { name: 'Cannon', lv: [[120, 30, .5, 2.25], [90, 45, .55, 2.5], [130, 65, .6, 2.75]], proj: 'projectile_cannonball', fx: 'fx_explosion', hit: 'hit_cannon', splash: [.75, .85, 1] },
-  mage: { name: 'Mage', lv: [[100, 28, .8, 2.5], [80, 42, .8, 2.75], [120, 60, .9, 3]], proj: 'projectile_magic_bolt', fx: 'fx_magic_burst', hit: 'hit_magic' },
-  frost: { name: 'Frost', lv: [[90, 6, 1, 2], [70, 9, 1, 2.25], [100, 12, 1.2, 2.5]], proj: 'projectile_frost_shard', fx: 'fx_frost_hit', hit: 'hit_frost', slow: [[.35, 1.5], [.45, 1.5], [.55, 2]] },
-  tesla: { name: 'Tesla', lv: [[150, 16, .9, 2], [110, 24, 1, 2.25], [150, 34, 1.1, 2.5]], proj: 'projectile_lightning_arc', fx: 'fx_lightning_hit', hit: 'hit_lightning', chain: [3, 4, 5] },
+  archer: { name: 'Archer', lv: [[70, 12, 1.25, 2.5], [60, 18, 1.4, 2.75], [90, 26, 1.6, 3]], proj: 'projectile_arrow', fx: 'impact_archer', hit: 'hit_arrow' },
+  cannon: { name: 'Cannon', lv: [[120, 30, .5, 2.25], [90, 45, .55, 2.5], [130, 65, .6, 2.75]], proj: 'projectile_cannonball', fx: 'impact_cannon', hit: 'hit_cannon', splash: [.75, .85, 1] },
+  mage: { name: 'Mage', lv: [[100, 28, .8, 2.5], [80, 42, .8, 2.75], [120, 60, .9, 3]], proj: 'projectile_magic_bolt', fx: 'impact_mage', hit: 'hit_magic' },
+  frost: { name: 'Frost', lv: [[90, 6, 1, 2], [70, 9, 1, 2.25], [100, 12, 1.2, 2.5]], proj: 'projectile_frost_shard', fx: 'impact_frost', hit: 'hit_frost', slow: [[.35, 1.5], [.45, 1.5], [.55, 2]] },
+  tesla: { name: 'Tesla', lv: [[150, 16, .9, 2], [110, 24, 1, 2.25], [150, 34, 1.1, 2.5]], proj: 'projectile_lightning_arc', fx: 'impact_tesla', hit: 'hit_lightning', chain: [3, 4, 5] },
 };
 const EN = {
   goblin: { name: 'Goblin', hp: 40, sp: 1.6, gold: 4, lives: 1, h: 72 },
@@ -326,7 +326,7 @@ function damage(e, n) {
   if (e.hp <= 0) {
     play('enemy_death_' + (1 + Math.floor(Math.random() * 3)));
     e.dead = true; g.remaining--; g.stats.kills++; addGold(e.d.gold); g.dying.push({ type: e.type, x: e.x, y: e.y, face: e.face, t: 0 });
-    addFx(M.sprites?.['enemy.' + e.type]?.deathFx || 'fx_death_puff', e.x, e.y); if (!reduced) addFx('fx_coin_pop', e.x, e.y - 40);
+    if (!sprite('enemy.' + e.type, 'death')) addFx(M.sprites?.['enemy.' + e.type]?.deathFx || 'fx_death_puff', e.x, e.y); if (!reduced) addFx('fx_coin_pop', e.x, e.y - 40);
   }
 }
 function addFx(k, x, y) { g.fx.push({ k, x, y, t: 0 }); }
@@ -338,7 +338,8 @@ function fire(t) {
   if (!inR.length) return false;
   const doomed = inR.filter(e => (e.pend || 0) < e.hp), live = TW[t.type].splash || !doomed.length ? inR : doomed; // avoid overkill
   const tgt = live.reduce((a, b) => b.dist > a.dist ? b : a), D = TW[t.type], [cx, cy] = spotC(t.spot);
-  play('fire_' + t.type); t.atk = .16;
+  play('fire_' + t.type); const AA = sprite(`tower.${t.type}.${t.lv}`, 'attack'); t.atkD = AA ? AA.frames / AA.fps : .16; t.atk = t.atkD;
+  const wait = AA ? 1 / AA.fps : 0; // projectile leaves on attack frame 1
   if (t.type === 'tesla') {
     let dmg = t.st[1], cur = tgt, from = [cx, cy - 70]; const hit = new Set();
     for (let i = 0; i < D.chain[t.lv - 1] && cur; i++) {
@@ -346,7 +347,7 @@ function fire(t) {
       from = [cur.x, cur.y]; dmg *= 0.8;
       const c = cur; cur = g.enemies.filter(e => !e.dead && !hit.has(e) && Math.hypot(e.x - c.x, e.y - c.y) <= 1.5 * TS).sort((a, b) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b.x - c.x, b.y - c.y))[0];
     }
-  } else { if (!D.splash) tgt.pend = (tgt.pend || 0) + t.st[1]; g.projs.push({ x: cx, y: cy - 70, tgt, tx: tgt.x, ty: tgt.y, t, dmg: D.splash ? 0 : t.st[1] }); }
+  } else { if (!D.splash) tgt.pend = (tgt.pend || 0) + t.st[1]; g.projs.push({ x: cx, y: cy - 70, tgt, tx: tgt.x, ty: tgt.y, t, dmg: D.splash ? 0 : t.st[1], wait }); }
   return true;
 }
 function hitProj(p) {
@@ -377,6 +378,7 @@ function step(dt) {
   for (const t of Object.values(g.towers)) { if (t.atk > 0) t.atk -= dt; t.cd -= dt; if (t.cd <= 0 && fire(t)) t.cd = 1 / t.st[2]; }
   const sp = 8 * TS * dt;
   for (const p of g.projs) {
+    if (p.wait > 0) { p.wait -= dt; continue; }
     if (!p.tgt.dead) { p.tx = p.tgt.x; p.ty = p.tgt.y; }
     const dx = p.tx - p.x, dy = p.ty - p.y, l = Math.hypot(dx, dy); p.a = Math.atan2(dy, dx);
     if (l <= sp) { p.x = p.tx; p.y = p.ty; p.done = true; hitProj(p); } else { p.x += dx / l * sp; p.y += dy / l * sp; }
@@ -667,7 +669,7 @@ function frameOf(a, t, dir) { // -> {i:image, sx, sy, sw, sh, ax, ay}
   const dirs = a.sheets ? a.sheets : null, key = dirs ? (dirs[dir] || dirs[dir === 'up' || dir === 'down' ? 'right' : dir] || Object.values(dirs)[0]) : a.sheet;
   const i = IMG[key]; if (!i) return null;
   const fw = a.frameWidth || i.width / n, fh = a.frameHeight || (a.rows ? i.height / Object.keys(a.rows).length : i.height);
-  const row = a.rows ? (a.rows[dir] ?? a.rows[dir === 'up' || dir === 'down' ? 'right' : dir] ?? 0) : 0;
+  const row = a.row ?? (a.rows ? (a.rows[dir] ?? a.rows[dir === 'up' || dir === 'down' ? 'right' : dir] ?? 0) : 0);
   const [ax, ay] = a.anchorPx ? a.anchorPx : [(a.anchor?.[0] ?? .5) * fw, (a.anchor?.[1] ?? 1) * fh];
   return { i, sx: f * fw, sy: row * fh, sw: fw, sh: fh, ax, ay, frames: n };
 }
@@ -699,8 +701,8 @@ function render() {
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   const items = [];
   for (const t of Object.values(g.towers)) {
-    const [x, y] = spotC(t.spot), id = `tower.${t.type}.${t.lv}`, atk = t.atk > 0 ? t.atk / .16 : 0;
-    const aa = atk > 0 && sprite(id, 'attack'), fr = aa ? frameOf(aa, .16 - t.atk, 'right') : frameOf(sprite(id, 'idle') || stillDef(`tower_${t.type}_l${t.lv}`), g.stats.time, 'right');
+    const [x, y] = spotC(t.spot), id = `tower.${t.type}.${t.lv}`, atk = t.atk > 0 ? t.atk / (t.atkD || .16) : 0;
+    const aa = atk > 0 && sprite(id, 'attack'), fr = aa ? frameOf(aa, (t.atkD || .16) - t.atk, 'right') : frameOf(sprite(id, 'idle') || stillDef(`tower_${t.type}_l${t.lv}`), g.stats.time, 'right');
     items.push([w2s(x, y + 56)[1], () => { // recoil fallback when there is no attack sheet: dip + squash
       at(x, y + 56 + (aa ? 0 : 5 * atk)); drawFrame(fr, aa ? 1 : 1 + .04 * atk, aa ? 1 : 1 - .07 * atk);
       if (!aa && atk > .5 && !reduced) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = SPARK[t.type]; ctx.globalAlpha = (atk - .5) * 1.2; ctx.beginPath(); ctx.arc(0, -fr.ay + 34, 18, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
@@ -723,6 +725,7 @@ function render() {
   }
   items.sort((a, b) => a[0] - b[0]).forEach(i => i[1]());
   for (const p of g.projs) {
+    if (p.wait > 0) continue;
     const a = sprite('projectile.' + TW[p.t.type].proj.replace('projectile_', ''), 'fly'), fr = frameOf(a || { sheet: TW[p.t.type].proj, frames: 1, anchor: [.5, .5] }, g.stats.time, 'right');
     at(p.x, p.y); ctx.rotate(p.a || 0); drawFrame(fr);
   }

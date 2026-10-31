@@ -367,7 +367,43 @@
   "p_signpost": "/assets/terrain/props/signpost.png",
   "p_barrel": "/assets/terrain/props/barrel.png",
   "p_lily_pad": "/assets/terrain/props/lily_pad.png",
-  "p_bridge_h": "/assets/terrain/props/bridge_h.png"
+  "p_bridge_h": "/assets/terrain/props/bridge_h.png",
+  "a3_goblin_walk": "/assets/anim/enemies/goblin_walk.png",
+  "a3_goblin_hit": "/assets/anim/enemies/goblin_hit.png",
+  "a3_goblin_hit_mask": "/assets/anim/enemies/goblin_hit_mask.png",
+  "a3_goblin_death": "/assets/anim/enemies/goblin_death.png",
+  "a3_orc_walk": "/assets/anim/enemies/orc_walk.png",
+  "a3_orc_hit": "/assets/anim/enemies/orc_hit.png",
+  "a3_orc_hit_mask": "/assets/anim/enemies/orc_hit_mask.png",
+  "a3_orc_death": "/assets/anim/enemies/orc_death.png",
+  "a3_knight_walk": "/assets/anim/enemies/knight_walk.png",
+  "a3_knight_hit": "/assets/anim/enemies/knight_hit.png",
+  "a3_knight_hit_mask": "/assets/anim/enemies/knight_hit_mask.png",
+  "a3_knight_death": "/assets/anim/enemies/knight_death.png",
+  "a3_troll_boss_walk": "/assets/anim/enemies/troll_boss_walk.png",
+  "a3_troll_boss_hit": "/assets/anim/enemies/troll_boss_hit.png",
+  "a3_troll_boss_hit_mask": "/assets/anim/enemies/troll_boss_hit_mask.png",
+  "a3_troll_boss_death": "/assets/anim/enemies/troll_boss_death.png",
+  "a3_tower_archer_idle": "/assets/anim/towers/tower_archer_idle.png",
+  "a3_tower_archer_attack": "/assets/anim/towers/tower_archer_attack.png",
+  "a3_tower_cannon_idle": "/assets/anim/towers/tower_cannon_idle.png",
+  "a3_tower_cannon_attack": "/assets/anim/towers/tower_cannon_attack.png",
+  "a3_tower_mage_idle": "/assets/anim/towers/tower_mage_idle.png",
+  "a3_tower_mage_attack": "/assets/anim/towers/tower_mage_attack.png",
+  "a3_tower_frost_idle": "/assets/anim/towers/tower_frost_idle.png",
+  "a3_tower_frost_attack": "/assets/anim/towers/tower_frost_attack.png",
+  "a3_tower_tesla_idle": "/assets/anim/towers/tower_tesla_idle.png",
+  "a3_tower_tesla_attack": "/assets/anim/towers/tower_tesla_attack.png",
+  "a3_projectile_arrow_anim": "/assets/anim/projectiles/projectile_arrow_anim.png",
+  "a3_projectile_cannonball_anim": "/assets/anim/projectiles/projectile_cannonball_anim.png",
+  "a3_projectile_magic_bolt_anim": "/assets/anim/projectiles/projectile_magic_bolt_anim.png",
+  "a3_projectile_frost_shard_anim": "/assets/anim/projectiles/projectile_frost_shard_anim.png",
+  "a3_projectile_lightning_arc_anim": "/assets/anim/projectiles/projectile_lightning_arc_anim.png",
+  "a3_impact_cannon": "/assets/anim/fx/impact_cannon.png",
+  "a3_impact_mage": "/assets/anim/fx/impact_mage.png",
+  "a3_impact_frost": "/assets/anim/fx/impact_frost.png",
+  "a3_impact_tesla": "/assets/anim/fx/impact_tesla.png",
+  "a3_impact_archer": "/assets/anim/fx/impact_archer.png"
  },
  "sounds": {
   "fire_archer": "/assets/sounds/01-arrow-ballista.ogg",
@@ -461,191 +497,271 @@
  },
  "anims": {
   "goblin_walk": {
-   "sheets": {
-    "right": "enemy_goblin",
-    "left": "enemy_goblin_left"
-   },
-   "frames": 1,
-   "fps": 8,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_goblin_walk",
+   "frameWidth": 100,
+   "frameHeight": 96,
+   "frames": 8,
+   "fps": 10,
+   "anchorPx": [
+    50,
+    86
    ],
-   "loop": true
+   "loop": true,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
   },
   "orc_walk": {
-   "sheets": {
-    "right": "enemy_orc",
-    "left": "enemy_orc_left"
-   },
-   "frames": 1,
-   "fps": 8,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_orc_walk",
+   "frameWidth": 128,
+   "frameHeight": 124,
+   "frames": 8,
+   "fps": 10,
+   "anchorPx": [
+    64,
+    114
    ],
-   "loop": true
+   "loop": true,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
   },
   "knight_walk": {
-   "sheets": {
-    "right": "enemy_knight",
-    "left": "enemy_knight_left"
-   },
-   "frames": 1,
-   "fps": 8,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_knight_walk",
+   "frameWidth": 114,
+   "frameHeight": 124,
+   "frames": 8,
+   "fps": 10,
+   "anchorPx": [
+    57,
+    114
    ],
-   "loop": true
+   "loop": true,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
   },
   "troll_boss_walk": {
-   "sheets": {
-    "right": "enemy_troll_boss",
-    "left": "enemy_troll_boss_left"
-   },
-   "frames": 1,
+   "sheet": "a3_troll_boss_walk",
+   "frameWidth": 224,
+   "frameHeight": 216,
+   "frames": 8,
    "fps": 8,
-   "anchor": [
-    0.5,
-    1
+   "anchorPx": [
+    112,
+    206
    ],
-   "loop": true
+   "loop": true,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
   },
   "archer_l1_idle": {
-   "sheet": "tower_archer_l1",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_archer_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 0
   },
   "archer_l2_idle": {
-   "sheet": "tower_archer_l2",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_archer_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 1
   },
   "archer_l3_idle": {
-   "sheet": "tower_archer_l3",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_archer_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 2
   },
   "cannon_l1_idle": {
-   "sheet": "tower_cannon_l1",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_cannon_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 0
   },
   "cannon_l2_idle": {
-   "sheet": "tower_cannon_l2",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_cannon_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 1
   },
   "cannon_l3_idle": {
-   "sheet": "tower_cannon_l3",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_cannon_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 2
   },
   "mage_l1_idle": {
-   "sheet": "tower_mage_l1",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_mage_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 0
   },
   "mage_l2_idle": {
-   "sheet": "tower_mage_l2",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_mage_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 1
   },
   "mage_l3_idle": {
-   "sheet": "tower_mage_l3",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_mage_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 2
   },
   "frost_l1_idle": {
-   "sheet": "tower_frost_l1",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_frost_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 0
   },
   "frost_l2_idle": {
-   "sheet": "tower_frost_l2",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_frost_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 1
   },
   "frost_l3_idle": {
-   "sheet": "tower_frost_l3",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_frost_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 2
   },
   "tesla_l1_idle": {
-   "sheet": "tower_tesla_l1",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_tesla_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 0
   },
   "tesla_l2_idle": {
-   "sheet": "tower_tesla_l2",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_tesla_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 1
   },
   "tesla_l3_idle": {
-   "sheet": "tower_tesla_l3",
-   "frames": 1,
-   "anchor": [
-    0.5,
-    1
+   "sheet": "a3_tower_tesla_idle",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 4,
+   "fps": 6,
+   "anchorPx": [
+    64,
+    160
    ],
-   "loop": true
+   "loop": true,
+   "row": 2
   },
   "fx_explosion": {
    "sheet": "fx_explosion",
@@ -718,110 +834,637 @@
     0.5
    ],
    "loop": false
+  },
+  "goblin_hit": {
+   "sheet": "a3_goblin_hit",
+   "frameWidth": 100,
+   "frameHeight": 96,
+   "frames": 3,
+   "fps": 20,
+   "anchorPx": [
+    50,
+    86
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
+  },
+  "goblin_hit_mask": {
+   "sheet": "a3_goblin_hit_mask",
+   "frameWidth": 100,
+   "frameHeight": 96,
+   "frames": 3,
+   "fps": 20,
+   "anchorPx": [
+    50,
+    86
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
+  },
+  "goblin_death": {
+   "sheet": "a3_goblin_death",
+   "frameWidth": 198,
+   "frameHeight": 102,
+   "frames": 8,
+   "fps": 12,
+   "anchorPx": [
+    99,
+    90
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1
+   }
+  },
+  "orc_hit": {
+   "sheet": "a3_orc_hit",
+   "frameWidth": 128,
+   "frameHeight": 124,
+   "frames": 3,
+   "fps": 20,
+   "anchorPx": [
+    64,
+    114
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
+  },
+  "orc_hit_mask": {
+   "sheet": "a3_orc_hit_mask",
+   "frameWidth": 128,
+   "frameHeight": 124,
+   "frames": 3,
+   "fps": 20,
+   "anchorPx": [
+    64,
+    114
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
+  },
+  "orc_death": {
+   "sheet": "a3_orc_death",
+   "frameWidth": 268,
+   "frameHeight": 130,
+   "frames": 8,
+   "fps": 12,
+   "anchorPx": [
+    134,
+    118
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1
+   }
+  },
+  "knight_hit": {
+   "sheet": "a3_knight_hit",
+   "frameWidth": 114,
+   "frameHeight": 124,
+   "frames": 3,
+   "fps": 20,
+   "anchorPx": [
+    57,
+    114
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
+  },
+  "knight_hit_mask": {
+   "sheet": "a3_knight_hit_mask",
+   "frameWidth": 114,
+   "frameHeight": 124,
+   "frames": 3,
+   "fps": 20,
+   "anchorPx": [
+    57,
+    114
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
+  },
+  "knight_death": {
+   "sheet": "a3_knight_death",
+   "frameWidth": 258,
+   "frameHeight": 130,
+   "frames": 8,
+   "fps": 12,
+   "anchorPx": [
+    129,
+    118
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1
+   }
+  },
+  "troll_boss_hit": {
+   "sheet": "a3_troll_boss_hit",
+   "frameWidth": 224,
+   "frameHeight": 216,
+   "frames": 3,
+   "fps": 20,
+   "anchorPx": [
+    112,
+    206
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
+  },
+  "troll_boss_hit_mask": {
+   "sheet": "a3_troll_boss_hit_mask",
+   "frameWidth": 224,
+   "frameHeight": 216,
+   "frames": 3,
+   "fps": 20,
+   "anchorPx": [
+    112,
+    206
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1,
+    "up": 2,
+    "down": 3
+   }
+  },
+  "troll_boss_death": {
+   "sheet": "a3_troll_boss_death",
+   "frameWidth": 496,
+   "frameHeight": 222,
+   "frames": 8,
+   "fps": 12,
+   "anchorPx": [
+    248,
+    210
+   ],
+   "loop": false,
+   "rows": {
+    "right": 0,
+    "left": 1
+   }
+  },
+  "archer_l1_attack": {
+   "sheet": "a3_tower_archer_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 0
+  },
+  "archer_l2_attack": {
+   "sheet": "a3_tower_archer_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 1
+  },
+  "archer_l3_attack": {
+   "sheet": "a3_tower_archer_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 2
+  },
+  "cannon_l1_attack": {
+   "sheet": "a3_tower_cannon_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 0
+  },
+  "cannon_l2_attack": {
+   "sheet": "a3_tower_cannon_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 1
+  },
+  "cannon_l3_attack": {
+   "sheet": "a3_tower_cannon_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 2
+  },
+  "mage_l1_attack": {
+   "sheet": "a3_tower_mage_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 0
+  },
+  "mage_l2_attack": {
+   "sheet": "a3_tower_mage_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 1
+  },
+  "mage_l3_attack": {
+   "sheet": "a3_tower_mage_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 2
+  },
+  "frost_l1_attack": {
+   "sheet": "a3_tower_frost_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 0
+  },
+  "frost_l2_attack": {
+   "sheet": "a3_tower_frost_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 1
+  },
+  "frost_l3_attack": {
+   "sheet": "a3_tower_frost_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 2
+  },
+  "tesla_l1_attack": {
+   "sheet": "a3_tower_tesla_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 0
+  },
+  "tesla_l2_attack": {
+   "sheet": "a3_tower_tesla_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 1
+  },
+  "tesla_l3_attack": {
+   "sheet": "a3_tower_tesla_attack",
+   "frameWidth": 128,
+   "frameHeight": 160,
+   "frames": 6,
+   "fps": 14,
+   "anchorPx": [
+    64,
+    160
+   ],
+   "loop": false,
+   "row": 2
+  },
+  "projectile_arrow_anim": {
+   "sheet": "a3_projectile_arrow_anim",
+   "frameWidth": 80,
+   "frameHeight": 32,
+   "frames": 4,
+   "fps": 12,
+   "anchorPx": [
+    64,
+    16
+   ],
+   "loop": true
+  },
+  "projectile_cannonball_anim": {
+   "sheet": "a3_projectile_cannonball_anim",
+   "frameWidth": 40,
+   "frameHeight": 40,
+   "frames": 8,
+   "fps": 16,
+   "anchorPx": [
+    20,
+    20
+   ],
+   "loop": true
+  },
+  "projectile_magic_bolt_anim": {
+   "sheet": "a3_projectile_magic_bolt_anim",
+   "frameWidth": 80,
+   "frameHeight": 60,
+   "frames": 6,
+   "fps": 12,
+   "anchorPx": [
+    40,
+    30
+   ],
+   "loop": true
+  },
+  "projectile_frost_shard_anim": {
+   "sheet": "a3_projectile_frost_shard_anim",
+   "frameWidth": 80,
+   "frameHeight": 48,
+   "frames": 4,
+   "fps": 12,
+   "anchorPx": [
+    40,
+    24
+   ],
+   "loop": true
+  },
+  "projectile_lightning_arc_anim": {
+   "sheet": "a3_projectile_lightning_arc_anim",
+   "frameWidth": 96,
+   "frameHeight": 48,
+   "frames": 4,
+   "fps": 24,
+   "anchorPx": [
+    0,
+    24
+   ],
+   "loop": true
+  },
+  "impact_cannon": {
+   "sheet": "a3_impact_cannon",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 8,
+   "fps": 16,
+   "anchorPx": [
+    64,
+    64
+   ],
+   "loop": false
+  },
+  "impact_mage": {
+   "sheet": "a3_impact_mage",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 8,
+   "fps": 16,
+   "anchorPx": [
+    64,
+    64
+   ],
+   "loop": false
+  },
+  "impact_frost": {
+   "sheet": "a3_impact_frost",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 8,
+   "fps": 16,
+   "anchorPx": [
+    64,
+    64
+   ],
+   "loop": false
+  },
+  "impact_tesla": {
+   "sheet": "a3_impact_tesla",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 8,
+   "fps": 16,
+   "anchorPx": [
+    64,
+    64
+   ],
+   "loop": false
+  },
+  "impact_archer": {
+   "sheet": "a3_impact_archer",
+   "frameWidth": 128,
+   "frameHeight": 128,
+   "frames": 7,
+   "fps": 16,
+   "anchorPx": [
+    64,
+    64
+   ],
+   "loop": false
   }
  },
  "sprites": {
   "enemy.goblin": {
    "walk": "goblin_walk",
-   "hit": null,
-   "death": null,
-   "deathFx": "fx_death_puff"
+   "hit": "goblin_hit",
+   "death": "goblin_death",
+   "deathFx": "fx_death_puff",
+   "hitMask": "goblin_hit_mask"
   },
   "enemy.orc": {
    "walk": "orc_walk",
-   "hit": null,
-   "death": null,
-   "deathFx": "fx_death_puff"
+   "hit": "orc_hit",
+   "death": "orc_death",
+   "deathFx": "fx_death_puff",
+   "hitMask": "orc_hit_mask"
   },
   "enemy.knight": {
    "walk": "knight_walk",
-   "hit": null,
-   "death": null,
-   "deathFx": "fx_death_puff"
+   "hit": "knight_hit",
+   "death": "knight_death",
+   "deathFx": "fx_death_puff",
+   "hitMask": "knight_hit_mask"
   },
   "enemy.troll": {
    "walk": "troll_boss_walk",
-   "hit": null,
-   "death": null,
-   "deathFx": "fx_death_puff"
+   "hit": "troll_boss_hit",
+   "death": "troll_boss_death",
+   "deathFx": "fx_death_puff",
+   "hitMask": "troll_boss_hit_mask"
   },
   "tower.archer.1": {
    "idle": "archer_l1_idle",
-   "attack": null
+   "attack": "archer_l1_attack"
   },
   "tower.archer.2": {
    "idle": "archer_l2_idle",
-   "attack": null
+   "attack": "archer_l2_attack"
   },
   "tower.archer.3": {
    "idle": "archer_l3_idle",
-   "attack": null
+   "attack": "archer_l3_attack"
   },
   "tower.cannon.1": {
    "idle": "cannon_l1_idle",
-   "attack": null
+   "attack": "cannon_l1_attack"
   },
   "tower.cannon.2": {
    "idle": "cannon_l2_idle",
-   "attack": null
+   "attack": "cannon_l2_attack"
   },
   "tower.cannon.3": {
    "idle": "cannon_l3_idle",
-   "attack": null
+   "attack": "cannon_l3_attack"
   },
   "tower.mage.1": {
    "idle": "mage_l1_idle",
-   "attack": null
+   "attack": "mage_l1_attack"
   },
   "tower.mage.2": {
    "idle": "mage_l2_idle",
-   "attack": null
+   "attack": "mage_l2_attack"
   },
   "tower.mage.3": {
    "idle": "mage_l3_idle",
-   "attack": null
+   "attack": "mage_l3_attack"
   },
   "tower.frost.1": {
    "idle": "frost_l1_idle",
-   "attack": null
+   "attack": "frost_l1_attack"
   },
   "tower.frost.2": {
    "idle": "frost_l2_idle",
-   "attack": null
+   "attack": "frost_l2_attack"
   },
   "tower.frost.3": {
    "idle": "frost_l3_idle",
-   "attack": null
+   "attack": "frost_l3_attack"
   },
   "tower.tesla.1": {
    "idle": "tesla_l1_idle",
-   "attack": null
+   "attack": "tesla_l1_attack"
   },
   "tower.tesla.2": {
    "idle": "tesla_l2_idle",
-   "attack": null
+   "attack": "tesla_l2_attack"
   },
   "tower.tesla.3": {
    "idle": "tesla_l3_idle",
-   "attack": null
+   "attack": "tesla_l3_attack"
   },
   "projectile.arrow": {
-   "fly": null
+   "fly": "projectile_arrow_anim"
   },
   "projectile.cannonball": {
-   "fly": null
+   "fly": "projectile_cannonball_anim"
   },
   "projectile.magic_bolt": {
-   "fly": null
+   "fly": "projectile_magic_bolt_anim"
   },
   "projectile.frost_shard": {
-   "fly": null
+   "fly": "projectile_frost_shard_anim"
   },
   "projectile.lightning_arc": {
-   "fly": null
+   "fly": "projectile_lightning_arc_anim"
   }
  },
- "_animComment": "See README 'Animation manifest'. Missing state (null) -> procedural fallback.",
+ "_animComment": "See README 'Animation manifest (td-pack-3)'. Missing state (null) -> procedural fallback.",
  "ui": {
   "_comment": "td-pack-2/ui/mobile 9-slice art (margins from td-pack-2 ui/make_mobile.py). slice = [top,right,bottom,left] in 1x px; @2x/@3x picked by devicePixelRatio. src may contain {state}.",
   "sheetTop": {
