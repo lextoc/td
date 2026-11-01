@@ -552,7 +552,7 @@ function stat(p, icon, label, cls = '') {
 function startGame() {
   newSeed(); g = null; setMap(pickMap());
   screen = 'game'; newGame(); clearUI(); setMusic('battle');
-  const hud = H$.hud = h('div', ui, 'hud'); hud.style.cssText = nine(M.ui.hudPanelTop, '', .36); hud.setAttribute('aria-label', 'Battle status');
+  const hud = H$.hud = h('div', ui, 'hud'); hud.style.cssText = nine(M.ui.hudPanelTop, '', .22); hud.setAttribute('aria-label', 'Battle status');
   const a = h('div', hud, 'hgrp hud-values');
   H$.gold = stat(a, 'icon_gold', 'Gold')[1]; [H$.heart, H$.lives] = stat(a, 'icon_heart', 'Lives'); H$.leftS = stat(a, 'icon_skull', 'Enemies', 'skull'); H$.left = H$.leftS[1];
   H$.wave2 = stat(a, 'icon_wave', 'Wave')[1];
