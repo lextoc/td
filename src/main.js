@@ -1,3 +1,4 @@
+import { createAtmosphere } from './atmosphere.js';
 import { STRIDES, newWalk, advanceWalk, walkFrameTime, drawWalking } from './walking.js';
 import { ROADS, waveFor, createWorld } from './world.js';
 import manifest from './manifest.json';
@@ -79,6 +80,12 @@ const setT = (e, s) => { s = String(s); if (e._t !== s) { e._t = s; e.textConten
 const setC = (e, c) => { if (e._c !== c) { e._c = c; e.className = c; } };
 
 // ---------- settings ----------
+const visuals = { bloom: localStorage.getItem('td.bloom') !== '0', wildlife: localStorage.getItem('td.wildlife') !== '0' };
+function visualSettings(parent) {
+  for (const [key, label] of [['bloom', 'Bloom'], ['wildlife', 'Birds']]) {
+    const b = btn(parent, `${label}: ${visuals[key] ? 'On' : 'Off'}`, () => { visuals[key] = !visuals[key]; localStorage.setItem('td.' + key, visuals[key] ? '1' : '0'); b.textContent = `${label}: ${visuals[key] ? 'On' : 'Off'}`; });
+  }
+}
 let muted = localStorage.getItem('td.muted') === '1';
 let reduced = localStorage.getItem('td.motion') ? localStorage.getItem('td.motion') === 'reduced' : matchMedia('(prefers-reduced-motion: reduce)').matches;
 const syncMotion = () => document.documentElement.classList.toggle('reduce-motion', reduced); syncMotion(); // TD-11c: in-game setting drives the same CSS as prefers-reduced-motion
@@ -524,10 +531,11 @@ function titleScreen() {
 }
 function worldScreen() {
   closeWorld?.(); screen = 'title'; g = null; clearUI(); modal = null; setMusic('menu');
-  closeWorld = createWorld(ui, { images: IMG, terrain: M.terrain, knight: M.anims.knight_walk, displayFont: DISPLAY.family, skin: { panel: nine(M.ui.hudPanelTop, '', .28), button: nine(M.ui.button48, 'normal', .6) }, start: road => { selectedRoad = road; closeWorld = null; startGame(); }, help: howTo,
+  closeWorld = createWorld(ui, { visuals, images: IMG, terrain: M.terrain, knight: M.anims.knight_walk, displayFont: DISPLAY.family, skin: { panel: nine(M.ui.hudPanelTop, '', .28), button: nine(M.ui.button48, 'normal', .6) }, start: road => { selectedRoad = road; closeWorld = null; startGame(); }, help: howTo,
     settings: () => { const m = mkModal(); modal = m; const box = panel(m, 'mpanel');
       const sound = btn(box, muted ? 'Sound: Off' : 'Sound: On', () => { setMuted(!muted); sound.textContent = muted ? 'Sound: Off' : 'Sound: On'; });
       const motion = btn(box, reduced ? 'Motion: Reduced' : 'Motion: Full', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); syncMotion(); motion.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; });
+      visualSettings(box);
       const done = btn(box, 'Back to kingdom', () => { m.remove(); modal = null; }); m.close = done.onclick; done.focus(); }
   });
 }
@@ -559,7 +567,7 @@ function stat(p, icon, label, cls = '') {
 function startGame() {
   closeWorld?.(); closeWorld = null;
   newSeed(); g = null; setMap(pickMap());
-  screen = 'game'; newGame(); clearUI(); setMusic('battle');
+  screen = 'game'; newGame(); battleAtmosphere.reset(); clearUI(); setMusic('battle');
   const hud = H$.hud = h('div', ui, 'hud'); hud.style.cssText = nine(M.ui.hudPanelTop, '', .22); hud.setAttribute('aria-label', 'Battle status');
   const a = h('div', hud, 'hgrp hud-values');
   H$.gold = stat(a, 'icon_gold', 'Gold')[1]; [H$.heart, H$.lives] = stat(a, 'icon_heart', 'Lives'); H$.leftS = stat(a, 'icon_skull', 'Enemies', 'skull'); H$.left = H$.leftS[1];
@@ -831,6 +839,7 @@ function setPaused(v) {
   const res = btn(col, 'Resume', () => setPaused(false));
   const snd = btn(col, '', () => setMuted(!muted)), mot = btn(col, '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); syncMotion(); setLbl(); });
   const setLbl = () => { snd.textContent = muted ? 'Sound: Off' : 'Sound: On'; mot.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; }; setLbl();
+  visualSettings(col);
   const prevS = onSettings; onSettings = () => { prevS(); setLbl(); };
   const confirm = (fn) => {
     const c = mkModal(modal), ci = panel(c, 'mpanel narrow'); h('div', ci, 'mtext center', 'Lose this run?');
@@ -986,6 +995,8 @@ function enemyFrame(type, state, t, dir) {
 
 // ---------- render ----------
 let cvFocused = false;
+const battleAtmosphere = createAtmosphere();
+let atmosphereDt = 0;
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
   if (screen !== 'game' || !g) return;
@@ -1040,7 +1051,9 @@ function render() {
     else if (k === 'ring') { ctx.strokeStyle = q.col; ctx.lineWidth = 8 * a; ctx.beginPath(); ctx.arc(0, 0, q.sz * (.3 + .7 * (1 - a * a)), 0, 6.283); ctx.stroke(); }
     else if (k === 'text') { ctx.font = `${Math.round(20 / L.k)}px "${DISPLAY.family}", sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 7 / L.k; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1e120a'; ctx.globalAlpha = Math.min(1, a * 2); ctx.strokeText(q.s, 0, 0); ctx.fillStyle = q.col; ctx.fillText(q.s, 0, 0); }
   } ctx.globalAlpha = 1;
-  drawFx(true); // TD-11d: coin bursts above the kill dust / death puff so the coins actually read
+  drawFx(true);
+  battleAtmosphere.draw(ctx, cv, { dt: atmosphereDt, dpr: L.dpr, ...visuals, reduced });
+  // TD-11d: coin bursts above the kill dust / death puff so the coins actually read
   for (const e of g.enemies) {
     if (e.hp >= e.max) continue;
     const fr = enemyFrame(e.type, 'walk', 0, e.face), hh = fr ? fr.ay : EN[e.type].h;
@@ -1064,6 +1077,7 @@ function loop(now) {
     if (!g.paused && !g.over) { let dt = real * g.speed * FF; while (dt > 0 && !g.over) { const s = Math.min(dt, 1 / 60); step(s); dt -= s; } }
     if (H$.gold) refreshHUD(real); if (shakeT > 0) shakeT -= real;
   }
+  atmosphereDt = screen === 'game' && g && !g.paused && !g.over ? real : 0;
   render(); requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

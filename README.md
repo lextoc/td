@@ -54,3 +54,6 @@ The Last Gate launches Endless: the first ten waves use the original roster, fol
 
 ## Walking animation
 The hub knight and battlefield units share `src/walking.js`. It reuses the original walk sheets and adds leg articulation, weight shifts and contact shadows at render time. Step phase advances with distance travelled (including difficulty and frost modifiers), while the hub eases into movement and settles when stopped. Reduced motion preserves the original poses without extra articulation or bobbing. `node test/walking.mjs` checks distance and frame-rate consistency, pause/idle behavior, source-frame bounds and reduced motion.
+
+## Bloom and wildlife
+Both gameplay and the kingdom hub use `src/atmosphere.js`: a warm highlight-only bloom pass and occasional small flocks with wingbeats, gliding and faint ground shadows. Bloom samples a buffer capped at 256 pixels on its longest edge and refreshes at up to 24 Hz, with a fallback for canvas implementations without blur filters. HUD text and castle labels are drawn separately from the bloom. Bloom and Birds have independent persistent toggles in Settings and Pause. Flyovers freeze during pauses and are disabled for reduced motion. Run `node test/atmosphere.mjs` for highlight and wildlife lifecycle checks.

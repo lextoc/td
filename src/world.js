@@ -1,3 +1,4 @@
+import { createAtmosphere } from './atmosphere.js';
 import { STRIDES, newWalk, advanceWalk, drawWalking } from './walking.js';
 export const ROADS = [
   { id: 'easy', name: 'Willow Keep', difficulty: 'Easy', x: 360, y: 340, hp: .75, speed: .9, gold: 300, description: 'A gentle woodland road. Weaker, slower enemies and 300 starting gold.' },
@@ -12,7 +13,7 @@ export function waveFor(wave, base, endless = false) {
   return [original[0].map(([type, count]) => [type, type === 'troll' ? Math.min(5, cycle + 1) : Math.ceil(count * (1 + cycle * .25))]), Math.max(.28, original[1] / (1 + cycle * .12))];
 }
 
-export function createWorld(parent, { images, terrain, knight, displayFont, skin, start, help, settings }) {
+export function createWorld(parent, { images, terrain, knight, displayFont, skin, visuals = {}, start, help, settings }) {
   const root = document.createElement('div'); root.className = 'world-menu'; parent.append(root);
   const canvas = document.createElement('canvas'); canvas.tabIndex = 0; canvas.setAttribute('aria-label', 'Explore the kingdom. Use WASD or arrow keys to walk, or tap a destination.'); root.append(canvas);
   const top = document.createElement('header'); top.innerHTML = '<strong>THE KINGDOM</strong>'; top.style.cssText = skin.panel; root.append(top);
@@ -34,6 +35,7 @@ export function createWorld(parent, { images, terrain, knight, displayFont, skin
     const name = document.createElement('strong'), difficulty = document.createElement('span'); name.textContent = road.name; difficulty.textContent = road.difficulty; difficulty.className = 'difficulty difficulty-' + road.id; b.append(name, difficulty); return b;
   });
   const hint = document.createElement('div'); hint.className = 'world-hint'; hint.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap the ground to explore' : 'Click to walk · WASD / arrows'; hint.setAttribute('role', 'status'); root.append(hint);
+  const atmosphere = createAtmosphere();
   const c = canvas.getContext('2d'); let scale = 1, ox = 0, oy = 0;
   function pointer(e) { if (travelOpen) setTravel(false); const r = canvas.getBoundingClientRect(); target.x = Math.max(45, Math.min(1755, (e.clientX - r.left - ox) / scale)); target.y = Math.max(120, Math.min(1350, (e.clientY - r.top - oy) / scale)); canvas.focus(); }
   canvas.addEventListener('pointerdown', pointer);
@@ -129,6 +131,7 @@ export function createWorld(parent, { images, terrain, knight, displayFont, skin
     const upright = props.filter(p => !p.flat).map(p => ({ y: p.y, draw: () => prop(p) }));
     upright.push({ y: hero.y, draw: drawHero });
     upright.sort((a,b) => a.y-b.y).forEach(p => p.draw());
+    atmosphere.draw(c, canvas, { dt, dpr, ...visuals, reduced: document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches });
     ROADS.forEach(r => {
       c.textAlign = 'center'; c.font = `25px "${displayFont}", sans-serif`; c.lineWidth = 5; c.strokeStyle = '#302014';
       c.strokeText(r.name,r.x,r.y-265); c.fillStyle = r === near ? '#ffe294' : '#fff2cb'; c.fillText(r.name,r.x,r.y-265);
