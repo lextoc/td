@@ -1,3 +1,4 @@
+import { ROADS, waveFor, createWorld } from './world.js';
 import manifest from './manifest.json';
 import './style.css';
 import { genMaps } from './mapgen.js';
@@ -346,9 +347,12 @@ document.addEventListener('touchend', e => {
 
 // ---------- game state ----------
 let screen = 'title', g = null;
+let selectedRoad = ROADS[1], closeWorld = null;
+const endless = () => selectedRoad.id === 'endless';
+const getWave = w => waveFor(w, WAVES, endless());
 function newGame() {
   g = {
-    gold: DEBUG && Q.get('gold') ? +Q.get('gold') : 250, lives: 20, wave: 0, phase: 'build', countdown: 15, buildDuration: 15,
+    gold: DEBUG && Q.get('gold') ? +Q.get('gold') : selectedRoad.gold, lives: 20, wave: 0, phase: 'build', countdown: 15, buildDuration: 15,
     queue: [], spawnT: 0, interval: 1, enemies: [], towers: {}, projs: [], fx: [], arcs: [], dying: [], parts: [],
     speed: 1, paused: false, over: false, stats: { kills: 0, gold: 0, time: 0 }, slot: null, radial: null, sel: null,
     focus: -1, hover: -1, undo: null, total: 0, remaining: 0, shownGold: 250, heartFlash: 0,
@@ -358,22 +362,22 @@ function newGame() {
 }
 function addGold(n) { g.gold += n; g.stats.gold += n; }
 const BREATHER = 12, BOSS_BREATHER = 18; // seconds between waves; the finale gets a longer build-up
-const isBoss = w => WAVES[w - 1]?.[0].some(([t]) => EN[t].boss);
+const isBoss = w => getWave(w)?.[0].some(([t]) => EN[t].boss);
 function startWave() {
-  if (!g || g.paused || g.phase !== 'build' || g.over || g.wave >= WAVES.length) return;
+  if (!g || g.paused || g.phase !== 'build' || g.over || (!endless() && g.wave >= WAVES.length)) return;
   const bonus = Math.floor(g.countdown);
   if (bonus > 0) { addGold(bonus); play('coin'); toast(`Early start! +${bonus} gold`); }
   g.wave++; g.phase = 'wave';
   g.kingdom.wards = modifiers(g.kingdom).wards;
-  const [groups, iv] = WAVES[g.wave - 1];
+  const [groups, iv] = getWave(g.wave);
   g.queue = groups.flatMap(([t, n]) => Array(n).fill(t)); g.interval = iv; g.spawnT = 0;
   g.total = g.remaining = g.queue.length;
   play('wave_start'); shake(isBoss(g.wave) ? 6 : 3);
-  if (isBoss(g.wave)) banner('Final wave!', 'The Troll leads the horde', 'boss', 'avatar_troll'); else banner(`Wave ${g.wave}`, waveLabel(g.wave));
+  if (isBoss(g.wave)) banner(endless() ? 'Boss wave!' : 'Final wave!', 'The Troll leads the horde', 'boss', 'avatar_troll'); else banner(`Wave ${g.wave}`, waveLabel(g.wave));
 }
 function spawn(type) {
-  const d = EN[type], hp = d.boss ? d.hp : Math.floor(d.hp * (1 + HP_SCALE * (g.wave - 1)));
-  if (d.boss) { play('boss_intro'); shake(12); banner(`The ${d.name}!`, `${d.hp} HP · costs ${d.lives} lives if it gets through`, 'boss', 'avatar_troll', 2800); }
+  const d = EN[type], hp = Math.floor((d.boss ? d.hp * (endless() ? 1 + Math.max(0, g.wave - 10) * .09 : 1) : d.hp * (1 + HP_SCALE * (g.wave - 1))) * selectedRoad.hp);
+  if (d.boss) { play('boss_intro'); shake(12); banner(`The ${d.name}!`, `${hp} HP · costs ${d.lives} lives if it gets through`, 'boss', 'avatar_troll', 2800); }
   g.enemies.push({ type, d, hp, max: hp, dist: 0, slow: 0, slowT: 0, x: PTS[0][0], y: PTS[0][1], walkT: Math.random(), face: 'right', flash: 0 });
 }
 function damage(e, n) {
@@ -434,7 +438,7 @@ function step(dt) {
   for (const e of g.enemies) {
     if (e.dead) continue;
     if (e.slowT > 0) e.slowT -= dt; else e.slow = 0;
-    e.dist += e.d.sp * TS * (1 - e.slow) * dt;
+    e.dist += e.d.sp * selectedRoad.speed * TS * (1 - e.slow) * dt;
     const ox = e.x, oy = e.y; [e.x, e.y] = pathPos(e.dist);
     const fx = e.x - ox, fy = e.y - oy; if (Math.abs(fx) + Math.abs(fy) > .01) e.face = Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 'left' : 'right') : (fy < 0 ? 'up' : 'down');
     e.walkT += dt * e.d.sp * (1 - e.slow); if (e.flash > 0) e.flash -= dt;
@@ -463,7 +467,7 @@ function step(dt) {
   if (g.lives <= 0) return endGame(false);
   if (g.phase === 'wave' && !g.queue.length && !g.enemies.length) {
     const b = waveReward(g.wave, g.kingdom); addGold(b); play('coin');
-    if (g.wave >= WAVES.length) return endGame(true);
+    if (!endless() && g.wave >= WAVES.length) return endGame(true);
     banner(`Wave ${g.wave} cleared`, `+${b} gold · ${isBoss(g.wave + 1) ? 'the Troll comes next!' : 'build up'}`, 'clear');
     g.phase = 'build'; g.countdown = g.buildDuration = isBoss(g.wave + 1) ? BOSS_BREATHER : BREATHER;
   }
@@ -498,7 +502,7 @@ function undoSell() {
 // ---------- UI: title ----------
 function clearUI() { ui.innerHTML = ''; ui.classList.remove('ended'); H$ = {}; }
 function titleScreen() {
-  screen = 'title'; g = null; clearUI(); modal = null; layout();
+  closeWorld?.(); closeWorld = null; screen = 'title'; g = null; clearUI(); modal = null; layout();
   img(ui, 'title_bg', 'nopt bgcover'); h('div', ui, 'dim nopt').style.opacity = .4;
   const wrap = h('div', ui, 'modal title'), card = h('div', wrap, 'tcard');
   if (M.logo) img(card, M.logo, 'nopt logo');
@@ -507,7 +511,7 @@ function titleScreen() {
   setMusic('menu');
   const foot = h('div', inn, 'foot', 'Hold the road. 10 waves. 20 lives.');
   const loaded = Object.keys(IMG).length > 0 && !failed.size;
-  if (loaded) return titleButtons(box);
+  if (loaded) return worldScreen();
   const lt = h('div', box, 'loadtxt', 'Loading… 0%'), fr = h('div', box, 'loadbar'); fr.style.backgroundImage = url('bar_frame');
   const fill = h('div', fr, 'loadfill'); fill.style.backgroundImage = url('progress_fill');
   void foot;
@@ -516,13 +520,14 @@ function titleScreen() {
     fontReady.then(titleScreen);
   });
 }
-function titleButtons(box) {
-  const pl = btn(box, 'Play', startGame);
-  btn(box, 'How to play', howTo);
-  const snd = btn(box, '', () => setMuted(!muted));
-  const mot = btn(box, '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); syncMotion(); onSettings(); });
-  onSettings = () => { snd.textContent = muted ? 'Sound: Off' : 'Sound: On'; mot.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; };
-  onSettings(); pl.focus();
+function worldScreen() {
+  closeWorld?.(); screen = 'title'; g = null; clearUI(); modal = null; setMusic('menu');
+  closeWorld = createWorld(ui, { images: IMG, start: road => { selectedRoad = road; closeWorld = null; startGame(); }, help: howTo,
+    settings: () => { const m = mkModal(); modal = m; const box = panel(m, 'mpanel');
+      const sound = btn(box, muted ? 'Sound: Off' : 'Sound: On', () => { setMuted(!muted); sound.textContent = muted ? 'Sound: Off' : 'Sound: On'; });
+      const motion = btn(box, reduced ? 'Motion: Reduced' : 'Motion: Full', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); syncMotion(); motion.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; });
+      const done = btn(box, 'Back to kingdom', () => { m.remove(); modal = null; }); m.close = done.onclick; done.focus(); }
+  });
 }
 let modal = null;
 function mkModal(parent = ui) { const m = h('div', parent, 'modal'); h('div', m, 'dim'); return m; }
@@ -550,6 +555,7 @@ function stat(p, icon, label, cls = '') {
   h('span', s, 'stat-label', label); return [i, value];
 }
 function startGame() {
+  closeWorld?.(); closeWorld = null;
   newSeed(); g = null; setMap(pickMap());
   screen = 'game'; newGame(); clearUI(); setMusic('battle');
   const hud = H$.hud = h('div', ui, 'hud'); hud.style.cssText = nine(M.ui.hudPanelTop, '', .22); hud.setAttribute('aria-label', 'Battle status');
@@ -663,7 +669,7 @@ function refreshChip(force) {
   placeNear(c, gh.spot);
 }
 const plural = (n, name) => `${n} ${name}${n === 1 ? '' : 's'}`;
-const waveLabel = w => [...new Set(WAVES[w - 1][0].map(g => EN[g[0]].name + 's'))].join(' & ');
+const waveLabel = w => [...new Set(getWave(w)[0].map(g => EN[g[0]].name + 's'))].join(' & ');
 const buzz = () => { try { navigator.vibrate?.(10); } catch {} return true; };
 // back-compat names used by tests/keyboard
 const openRadial = (s, keep) => openSel(s, keep), openUpgrade = (s, keep) => openSel(s, keep);
@@ -842,13 +848,13 @@ function endGame(win) {
   modal = mkModal(); modal.classList.add('endscr', win ? 'win' : 'lose'); const wrap = h('div', modal, 'tcard'); ribbon(wrap, win ? 'Victory!' : 'Defeat', 'trib'); const inn = panel(wrap, 'mpanel');
   h('div', inn, 'mtext center big2', win ? 'The road holds!' : `The enemy broke through on wave ${g.wave}.`);
   const s = Math.floor(g.stats.time), st = h('div', inn, 'estats');
-  [['icon_wave_96', 'Waves', `${Math.min(g.wave, WAVES.length)} / ${WAVES.length}`], ['icon_heart_96', 'Lives left', `${win ? g.lives : 0} / ${modifiers(g.kingdom).maxLives}`], ['icon_gold_96', 'Gold earned', g.stats.gold.toLocaleString('en-US')], ['icon_skull_96', 'Kills', `${g.stats.kills}`]]
+  [['icon_wave_96', 'Waves', endless() ? `${g.wave} · Endless` : `${Math.min(g.wave, WAVES.length)} / ${WAVES.length}`], ['icon_heart_96', 'Lives left', `${win ? g.lives : 0} / ${modifiers(g.kingdom).maxLives}`], ['icon_gold_96', 'Gold earned', g.stats.gold.toLocaleString('en-US')], ['icon_skull_96', 'Kills', `${g.stats.kills}`]]
     .forEach(([ic, l, v]) => { const d = h('div', st, 'estat'), im = h('img', d, 'nopt'); im.src = `assets/ui/icon/${ic}.png`; im.alt = ''; h('b', d, '', v); h('span', d, '', l); });
   h('div', inn, 'mtext center etime', `Towers standing: ${Object.keys(g.towers).length} · Time: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
   h('div', inn, 'mtext center', `Research: ${totalRanks(g.kingdom)}/27 ranks · Council spending: ${g.kingdom.spent} gold${g.kingdom.doctrine ? ' · Doctrine: ' + DOCTRINES.find(d => d.id === g.kingdom.doctrine).name : ''}`);
   const r = h('div', inn, 'row');
   const a = btn(r, 'Play again', () => { modal = null; startGame(); }, 'Play again', 'eplay');
-  btn(r, 'Title', () => { modal = null; titleScreen(); });
+  btn(r, 'Kingdom', () => { modal = null; titleScreen(); });
   modal.result = win ? 'win' : 'lose'; a.focus();
 }
 
@@ -862,7 +868,7 @@ function refreshHUD(realDt) {
   setT(H$.lives, g.lives); setC(H$.lives, 'out display num' + (g.lives < 5 ? ' low' : ''));
   g.heartFlash -= realDt; setC(H$.heart, 'nopt hudico' + (g.heartFlash > 0 ? ' flash' : ''));
   setT(H$.left, g.phase === 'wave' ? g.remaining : 0);
-  setT(H$.wave, g.phase === 'wave' ? `${g.remaining} enemies remaining` : 'Prepare your defenses'); setT(H$.wave2, `${g.wave}/${WAVES.length}`);
+  setT(H$.wave, g.phase === 'wave' ? `${g.remaining} enemies remaining` : 'Prepare your defenses'); setT(H$.wave2, `${g.wave}/${endless() ? '∞' : WAVES.length}`);
   H$.wbar.setAttribute('aria-valuenow', g.phase === 'wave' && g.total ? Math.round(100 * g.remaining / g.total) : 0);
   const fw = (g.phase === 'wave' && g.total ? Math.round(100 * g.remaining / g.total) : 0) + '%'; if (H$.wfill._w !== fw) { H$.wfill._w = fw; H$.wfill.style.width = fw; H$.wfill.hidden = fw === '0%'; }
   if (setIcon(H$.pause, g.paused ? 'play' : 'pause')) H$.pause.setAttribute('aria-label', g.paused ? 'Resume' : 'Pause');
@@ -892,7 +898,7 @@ function refreshHUD(realDt) {
     H$.countdown.setAttribute('aria-valuetext', `${Math.max(0, cd)} seconds until next wave`);
   }
   const nw = g.wave + 1;
-  if (g.phase === 'build') setT(H$.next, nw <= WAVES.length ? 'Next: ' + WAVES[nw - 1][0].map(([t, n]) => plural(n, EN[t].name)).join(', ') : ''); else setT(H$.next, `${g.remaining} left`);
+  if (g.phase === 'build') setT(H$.next, (endless() || nw <= WAVES.length) ? 'Next: ' + getWave(nw)[0].map(([t, n]) => plural(n, EN[t].name)).join(', ') : ''); else setT(H$.next, `${g.remaining} left`);
   refreshUpgrade();
   updateCastleAccess();
 }
@@ -1065,4 +1071,5 @@ if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g(
 layout(); fontReady.then(titleScreen);
 
 mobileCSS();
+
 

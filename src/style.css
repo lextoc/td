@@ -414,3 +414,16 @@ html.reduce-motion #ui .bbar .barslot,html.reduce-motion #ui .bbar .start{transi
 #ui .bbar .countdown-fill{height:100%;width:100%;transform-origin:left center;background:linear-gradient(90deg,#ca8d25,#ffe49a);box-shadow:0 0 5px #ffd16a;will-change:transform}
 #ui .bbar .countdown-border.urgent .countdown-fill{background:#ffae69}
 #ui .bbar button.start{white-space:normal}
+
+
+.world-menu{position:absolute;inset:0;pointer-events:auto;overflow:hidden;color:#fff1cf;background:#619849}
+.world-menu canvas{width:100%;height:100%;display:block;touch-action:none;outline:none}
+.world-menu header{position:absolute;top:calc(10px + env(safe-area-inset-top));left:12px;right:12px;display:flex;align-items:center;gap:12px;padding:10px 14px;background:#221b13ed;border:2px solid #b28a48;border-radius:10px;box-shadow:0 4px 12px #0005}
+.world-menu header strong{font-family:var(--display);font-size:22px;letter-spacing:1px}.world-menu header span{font-size:14px}.world-menu header nav{margin-left:auto;display:flex;gap:6px}
+.world-menu button{font:inherit;color:#fff1cf;background:#372b1c;border:2px solid #bd9653;border-radius:7px;min-height:44px;padding:6px 12px;cursor:pointer}.world-menu button:hover{background:#594126}.world-menu button:focus-visible{outline:3px solid #fff1af;outline-offset:2px}.world-menu button:disabled{opacity:.55;cursor:default}
+.world-road{position:absolute;bottom:calc(112px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(440px,calc(100% - 52px));padding:12px;background:#221b13ed;border:2px solid #b28a48;border-radius:12px;box-shadow:0 5px 18px #0006;pointer-events:none}
+.world-road h2{font-family:var(--display);font-size:22px;margin:0 0 5px}.world-road p{font-size:14px;line-height:1.35;margin:0 0 10px}.world-road button{width:100%;background:#405633;pointer-events:auto}
+.world-destinations{position:absolute;bottom:calc(28px + env(safe-area-inset-bottom));left:12px;right:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.world-destinations button{font-size:13px;background:#221b13ed}
+.world-hint{position:absolute;bottom:calc(5px + env(safe-area-inset-bottom));width:100%;text-align:center;font-size:12px;text-shadow:0 2px 3px #000}
+@media(max-width:600px){.world-menu header{flex-wrap:wrap;gap:4px}.world-menu header span{display:none}.world-menu header strong{font-size:18px}.world-menu header button{font-size:12px;padding:4px 8px}.world-destinations{grid-template-columns:repeat(2,1fr)}.world-road{bottom:calc(140px + env(safe-area-inset-bottom))}}
+@media(max-height:500px){.world-road{left:auto;right:12px;transform:none;width:245px;bottom:calc(90px + env(safe-area-inset-bottom))}.world-road p{font-size:12px}.world-road h2{font-size:18px}.world-destinations{bottom:26px}.world-menu header{padding:4px 10px}}

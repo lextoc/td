@@ -45,3 +45,9 @@ The td-pack-3 sheets come from `/workspace/game-art/td-pack-3/assets.json` and a
 
 ## Kingdom research
 Tap the castle or press **K** for the Royal Council. Spend gold on 27 research ranks across Warfare, Treasury and Defense, emergency repairs, and one permanent doctrine per run. The game pauses while you choose. Every generated map reserves a clear castle site, and the camera includes the castle in the visible play area. See [KINGDOM.md](KINGDOM.md) for costs, unlocks, effects and strategy. Run `npm run test:kingdom` for the research and engine checks.
+
+
+## Kingdom world menu
+Explore the kingdom with WASD, arrow keys, or tap-to-walk. Destination buttons walk you to a castle; approach it and choose Defend castle (or press Enter). Willow Keep is Easy (75% enemy HP, 90% speed, 300 gold), Crownwatch is Normal (original balance), and Ironthorn is Hard (140% HP, 112% speed, 225 gold). Each road launches a fresh generated battlefield with the same tower-spot guarantees and Royal Council research.
+
+The Last Gate launches Endless: the first ten waves use the original roster, followed by repeating cycles with 25% more regular enemies per cycle and shorter spawn intervals (floor 0.28 seconds). Trolls return every tenth wave, gain health with progression, and increase in number up to five. There is no victory cutoff; survive until your lives run out. Play again keeps the selected challenge; Kingdom returns to exploration.
