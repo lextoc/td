@@ -1,3 +1,4 @@
+import { animationFrame, attackPose, deathOpacity, effectPose, projectileLift } from './animation.js';
 import { createAtmosphere } from './atmosphere.js';
 import { STRIDES, newWalk, advanceWalk, walkFrameTime, drawWalking } from './walking.js';
 import { ROADS, waveFor, createWorld } from './world.js';
@@ -424,7 +425,7 @@ function fire(t) {
       from = [cur.x, cur.y]; dmg *= 0.8;
       const c = cur; cur = g.enemies.filter(e => !e.dead && !hit.has(e) && Math.hypot(e.x - c.x, e.y - c.y) <= 1.5 * TS).sort((a, b) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b.x - c.x, b.y - c.y))[0];
     }
-  } else { if (!D.splash) tgt.pend = (tgt.pend || 0) + t.st[1]; g.projs.push({ x: cx, y: cy - 70, tgt, tx: tgt.x, ty: tgt.y, t, dmg: D.splash ? 0 : t.st[1], wait }); }
+  } else { if (!D.splash) tgt.pend = (tgt.pend || 0) + t.st[1]; g.projs.push({ x: cx, y: cy - 70, tgt, tx: tgt.x, ty: tgt.y, t, dmg: D.splash ? 0 : t.st[1], wait, age: 0, trail: [], flightLength: Math.hypot(tgt.x - cx, tgt.y - (cy - 70)) }); }
   return true;
 }
 function hitProj(p) {
@@ -463,6 +464,8 @@ function step(dt) {
   const sp = 8 * TS * dt;
   for (const p of g.projs) {
     if (p.wait > 0) { p.wait -= dt; continue; }
+    p.age = (p.age || 0) + dt;
+    p.trail ||= []; p.trail.push([p.x, p.y]); if (p.trail.length > 6) p.trail.shift();
     if (!p.tgt.dead) { p.tx = p.tgt.x; p.ty = p.tgt.y; }
     const dx = p.tx - p.x, dy = p.ty - p.y, l = Math.hypot(dx, dy); p.a = Math.atan2(dy, dx);
     if (l <= sp) { p.x = p.tx; p.y = p.ty; p.done = true; hitProj(p); } else { p.x += dx / l * sp; p.y += dy / l * sp; }
@@ -471,7 +474,7 @@ function step(dt) {
   g.enemies = g.enemies.filter(e => !e.dead);
   for (const f of g.fx) f.t += dt; g.fx = g.fx.filter(f => f.t < animDur(f.k));
   for (const d of g.dying) d.t += dt; g.dying = g.dying.filter(d => d.t < deathDur(d.type));
-  for (const q of g.parts) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.gr ?? 600) * dt; if (q.kind === 'dust') { q.vx *= .9; q.vy *= .9; } } g.parts = g.parts.filter(q => q.t < q.life);
+  for (const q of g.parts) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.gr ?? 600) * dt; if (q.kind === 'dust') { q.vx *= Math.exp(-6.32 * dt); q.vy *= Math.exp(-6.32 * dt); } } g.parts = g.parts.filter(q => q.t < q.life);
   for (const a of g.arcs) a.t -= dt; g.arcs = g.arcs.filter(a => a.t > 0);
   if (g.lives <= 0) return endGame(false);
   if (g.phase === 'wave' && !g.queue.length && !g.enemies.length) {
@@ -965,7 +968,7 @@ const animDur = k => { const a = ANIM[k]; return a ? (reduced ? .15 : (a.frames 
 const DEATH = .45;
 const deathDur = type => { const a = sprite('enemy.' + type, 'death'); return a ? (a.frames || 1) / (a.fps || 12) : DEATH; };
 function frameOf(a, t, dir) { // -> {i:image, sx, sy, sw, sh, ax, ay}
-  const n = a.frames || 1, f = a.loop === false ? Math.min(n - 1, Math.floor(t * (a.fps || 12))) : Math.floor(t * (a.fps || 12)) % n;
+  const n = a.frames || 1, f = animationFrame(a, t);
   const dirs = a.sheets ? a.sheets : null, key = dirs ? (dirs[dir] || dirs[dir === 'up' || dir === 'down' ? 'right' : dir] || Object.values(dirs)[0]) : a.sheet;
   const i = IMG[key]; if (!i) return null;
   const fw = a.frameWidth || i.width / n, fh = a.frameHeight || (a.rows ? i.height / Object.keys(a.rows).length : i.height);
@@ -1006,20 +1009,27 @@ function render() {
   const items = [];
   for (const t of Object.values(g.towers)) {
     const [x, y] = spotC(t.spot), id = `tower.${t.type}.${t.lv}`, atk = t.atk > 0 ? t.atk / (t.atkD || .16) : 0;
-    const aa = atk > 0 && sprite(id, 'attack'), fr = aa ? frameOf(aa, (t.atkD || .16) - t.atk, 'right') : frameOf(sprite(id, 'idle') || stillDef(`tower_${t.type}_l${t.lv}`), g.stats.time, 'right');
-    items.push([w2s(x, y + 56)[1], () => { // recoil fallback when there is no attack sheet: dip + squash
-      const pp = t.pop > 0 && !reduced ? Math.sin((1 - t.pop / .35) * Math.PI) * .18 : 0;
-      at(x, y + 56 + (aa ? 0 : 5 * atk)); drawFrame(fr, (aa ? 1 : 1 + .04 * atk) * (1 + pp), (aa ? 1 : 1 - .07 * atk) * (1 + pp));
-      if (!aa && atk > .5 && !reduced) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = SPARK[t.type]; ctx.globalAlpha = (atk - .5) * 1.2; ctx.beginPath(); ctx.arc(0, -fr.ay + 34, 18, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+    const aa = atk > 0 && sprite(id, 'attack'), fr = aa ? frameOf(aa, (t.atkD || .16) - t.atk, 'right') : frameOf(sprite(id, 'idle') || stillDef(`tower_${t.type}_l${t.lv}`), g.stats.time + t.spot * .173, 'right');
+    items.push([w2s(x, y + 56)[1], () => {
+      const pp = t.pop > 0 && !reduced ? Math.sin((1 - t.pop / .35) * Math.PI) * .12 : 0;
+      const pose = t.atk > 0 ? attackPose(1 - atk, t.type, reduced) : { x: 1, y: 1, offset: 0 };
+      at(x, y + 56 + pose.offset);
+      const fade = aa ? Math.max(0, Math.min(1, (1 - atk - .83) / .17)) : 0;
+      if (fade > 0) {
+        const idle = frameOf(sprite(id, 'idle') || stillDef(`tower_${t.type}_l${t.lv}`), g.stats.time + t.spot * .173, 'right');
+        drawFrame(idle, 1 + pp, 1 + pp);
+      }
+      drawFrame(fr, pose.x * (1 + pp), pose.y * (1 + pp), 1 - fade);
+      if (!aa && atk > .5 && !reduced) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = SPARK[t.type]; ctx.globalAlpha = (atk - .5) * .65; ctx.beginPath(); ctx.arc(0, -fr.ay + 34, 12, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
     }]);
   }
   for (const e of g.enemies) {
     const walk = e.walk || newWalk(), animation = sprite('enemy.' + e.type, 'walk');
     const fr = enemyFrame(e.type, 'walk', animation ? walkFrameTime(walk, animation) : e.walkT, e.face);
-    const hit = e.flash > 0 && sprite('enemy.' + e.type, 'hit'), hf = hit ? frameOf(hit, .12 - e.flash, e.face) : null;
+    const hit = e.flash > 0 && sprite('enemy.' + e.type, 'hit'), hf = hit ? frameOf({ ...hit, loop: false }, ((.12 - e.flash) / .12) * (hit.frames || 1) / (hit.fps || 12), e.face) : null;
     items.push([w2s(e.x, e.y + 36)[1], () => {
       at(e.x, e.y + 36);
-      if (hf) drawFrame(hf);
+      if (hf) { ctx.translate(0, reduced ? 0 : -Math.sin((.12 - e.flash) / .12 * Math.PI) * 1.5); drawFrame(hf); }
       else if (e.flash > 0) drawFrame(fr, 1, 1, 1, e.flash / .12 * .85);
       else drawWalking(ctx, fr, walk, { reduced, weight: e.d.boss ? 1.6 : e.type === 'goblin' ? .8 : 1 });
     }]);
@@ -1027,22 +1037,42 @@ function render() {
   for (const d of g.dying) {
     const a = sprite('enemy.' + d.type, 'death'), q = d.t / deathDur(d.type);
     items.push([w2s(d.x, d.y + 36)[1], () => {
-      if (a) { at(d.x, d.y + 36); drawFrame(frameOf(a, d.t, d.face)); return; }
+      if (a) { at(d.x, d.y + 36); drawFrame(frameOf({ ...a, loop: false }, d.t, d.face), 1, 1, deathOpacity(q)); return; }
       const fr = enemyFrame(d.type, 'walk', 0, d.face); at(d.x, d.y + 36); drawFrame(fr, 1 - .5 * q, 1 - .6 * q, 1 - q, q < .3 ? 1 - q / .3 : 0); // fade + shrink
     }]);
   }
   items.sort((a, b) => a[0] - b[0]).forEach(i => i[1]());
   for (const p of g.projs) {
     if (p.wait > 0) continue;
-    const a = sprite('projectile.' + TW[p.t.type].proj.replace('projectile_', ''), 'fly'), fr = frameOf(a || { sheet: TW[p.t.type].proj, frames: 1, anchor: [.5, .5] }, g.stats.time, 'right');
-    at(p.x, p.y); ctx.rotate(p.a || 0); drawFrame(fr);
+    const a = sprite('projectile.' + TW[p.t.type].proj.replace('projectile_', ''), 'fly'), fr = frameOf(a || { sheet: TW[p.t.type].proj, frames: 1, anchor: [.5, .5] }, p.age || 0, 'right');
+    const flight = Math.min(1, (p.age || 0) * 8 * TS / Math.max(1, p.flightLength || 1));
+    const lift = projectileLift(p.t.type, flight, reduced);
+    if (!reduced && p.trail?.length > 1 && ['mage', 'frost'].includes(p.t.type)) {
+      for (let i = 1; i < p.trail.length; i++) {
+        at(...p.trail[i-1]); ctx.globalAlpha = i / p.trail.length * .22; ctx.strokeStyle = SPARK[p.t.type]; ctx.lineWidth = 2 + i * .4; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(p.trail[i][0] - p.trail[i-1][0], p.trail[i][1] - p.trail[i-1][1]); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    at(p.x, p.y - lift); ctx.rotate(p.a || 0); drawFrame(fr);
   }
   for (const r of g.arcs) { // lightning: anchored at its left end, stretched to the target
-    const [x1, y1] = r.a, [x2, y2] = r.b, a = sprite('projectile.lightning_arc', 'fly'), fr = frameOf(a || { sheet: 'projectile_lightning_arc', frames: 1, anchorPx: [0, 20] }, .12 - r.t, 'right');
+    const [x1, y1] = r.a, [x2, y2] = r.b, a = sprite('projectile.lightning_arc', 'fly'), fr = frameOf(a || { sheet: 'projectile_lightning_arc', frames: 1, anchorPx: [0, 20] }, a ? ((.12 - r.t) / .12) * (a.frames || 1) / (a.fps || 12) : .12 - r.t, 'right');
     if (!fr) continue; at(x1, y1); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
     const len = Math.hypot(x2 - x1, y2 - y1); ctx.globalAlpha = Math.min(1, r.t / .06); ctx.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, 0, -fr.ay, len, fr.sh); ctx.globalAlpha = 1;
   }
-  const drawFx = top => { for (const f of g.fx) { if (!!f.top !== top) continue; const a = ANIM[f.k] || { sheet: f.k, frameWidth: 128, frameHeight: 128, frames: 4, fps: 12, anchor: [.5, .5], loop: false }; at(f.x, f.y); const fr = frameOf(a, reduced ? Math.min(.34, (a.frames || 4) / (a.fps || 12) / 2) : f.t, 'right'), z = fr && a.drawSize ? a.drawSize / fr.sw * (f.s || 1) : 1; drawFrame(fr, z, z); } };
+  const drawFx = top => {
+    for (const f of g.fx) {
+      if (!!f.top !== top) continue;
+      const a = ANIM[f.k] || { sheet: f.k, frameWidth: 128, frameHeight: 128, frames: 4, fps: 12, anchor: [.5, .5], loop: false };
+      const duration = animDur(f.k), pose = effectPose(f.t / duration, reduced);
+      const time = reduced ? Math.max(0, ((a.frames || 1) - 1) / (a.fps || 12) * .5) : f.t;
+      at(f.x, f.y);
+      const fr = frameOf({ ...a, loop: false }, time, 'right');
+      const z = (fr && a.drawSize ? a.drawSize / fr.sw : 1) * (f.s || 1) * pose.scale;
+      drawFrame(fr, z, z, pose.alpha);
+    }
+  };
   drawFx(false);
   for (const q of g.parts) { const k = q.kind || 'sq', a = 1 - q.t / q.life; at(q.x, q.y); ctx.globalAlpha = a;
     if (k === 'sq') { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = q.col; const z = q.sz || 8; ctx.fillRect(-z / 2, -z / 2, z, z); ctx.globalCompositeOperation = 'source-over'; }
