@@ -1,5 +1,6 @@
 import M from './manifest.json';
 import './style.css';
+import { genMaps } from './mapgen.js';
 
 // ---------- setup / theme ----------
 const TS = 128; // world units: one tile = 128 px of art
@@ -125,7 +126,14 @@ const WAVES = [
 ];
 
 // ---------- maps: src/maps/*.json (SPEC-mobile.md §1), picked by viewport aspect with hysteresis (§2) ----------
-const MAPS = Object.fromEntries(Object.values(import.meta.glob('./maps/*.json', { eager: true })).map(m => [m.default.id, m.default]));
+// TD-9b: the JSON files are now templates (size, HUD rows, terrain rules); path + spots + water come from mapgen.js per seed.
+const TPL = Object.fromEntries(Object.values(import.meta.glob('./maps/*.json', { eager: true })).map(m => [m.default.id, m.default]));
+let MAPS, SEED;
+function newSeed() { // ?seed=<n> reproduces; otherwise a fresh seed on every start
+  SEED = Q.has('seed') ? (+Q.get('seed') >>> 0) : (Math.random() * 2 ** 31) >>> 0;
+  MAPS = genMaps(SEED, TPL); console.log('map seed', SEED);
+}
+newSeed();
 const VARIANT = a => a < .8 ? 'portrait' : a <= 1.25 ? 'square' : 'landscape';
 let variant = null;
 function pickVariant() { // switch only when the aspect is >0.03 past a threshold
@@ -298,8 +306,17 @@ function layout() { // all DOM reads happen here (resize / orientation / screen 
 addEventListener('resize', queueLayout); addEventListener('orientationchange', () => { queueLayout(); if (screen === 'game' && g && !g.over && !g.paused) setPaused(true); });
 visualViewport?.addEventListener('resize', queueLayout);
 // no accidental zoom / pull-to-refresh on the game surface
-for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
-cv.addEventListener('dblclick', e => e.preventDefault());
+// TD-9c: iOS Safari double-tap zoom. CSS touch-action does most of it (manipulation on page/UI, none on the canvas);
+// this guard cancels the zoom gesture on a 2nd touchend within 350 ms and replays it as a click, so fast double taps = 2 game taps.
+for (const ev of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+let lastTouchEnd = -1e9;
+document.addEventListener('touchend', e => {
+  const t = e.changedTouches[0], fast = e.timeStamp - lastTouchEnd < 350; lastTouchEnd = e.timeStamp;
+  if (!fast || !e.cancelable || e.touches.length || !t) return;
+  e.preventDefault(); // kills the zoom, but also the native click: replay it on the element under the finger
+  const el = document.elementFromPoint(t.clientX, t.clientY) || e.target;
+  if (!el.disabled) el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY, view: window }));
+}, { passive: false });
 
 // ---------- game state ----------
 let screen = 'title', g = null;
@@ -471,6 +488,7 @@ let H$ = {};
 const live = (s) => { if (H$.live) H$.live.textContent = s; };
 function stat(p, icon, cls = '') { const s = h('div', p, 'stat ' + cls), i = img(s, icon, 'nopt hudico'); return [i, h('span', s, 'out display num')]; }
 function startGame() {
+  newSeed(); g = null; setMap(pickMap());
   screen = 'game'; newGame(); clearUI(); setMusic('battle');
   const hud = H$.hud = h('div', ui, 'hud'); hud.style.backgroundImage = url('hud_body');
   const a = h('div', hud, 'hgrp');
@@ -817,7 +835,7 @@ addEventListener('keydown', ev => {
   else if (k === 'Escape') { if (g.radial != null || g.sel != null) { closePanels(); cv.focus(); } else if (g.slot) g.slot = null; else setPaused(true); }
 });
 
-if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, get map() { return MAP.id; }, get PATHLEN() { return PLEN; }, MAPS, setMap, layout, get MAPOBJ() { return MAP; }, pathArt, L, spotS, s2w, w2s, spotAtXY };
+if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, get map() { return MAP.id; }, get seed() { return SEED; }, get PATHLEN() { return PLEN; }, get MAPS() { return MAPS; }, setMap, layout, get MAPOBJ() { return MAP; }, pathArt, L, spotS, s2w, w2s, spotAtXY };
 layout(); fontReady.then(titleScreen);
 
 mobileCSS();

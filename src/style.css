@@ -1,12 +1,12 @@
 /* Responsive: the canvas fills the viewport; all UI is a DOM overlay sized in CSS px times --u (UI scale). */
-html,body{margin:0;height:100%;background:#141019;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+html,body{touch-action:manipulation;margin:0;height:100%;background:#141019;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%}
 body{position:fixed;inset:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
 #stage{position:absolute;inset:0;font-weight:bold;color:var(--text);font-size:calc(16px*var(--u,1));user-select:none;-webkit-user-select:none}
 #cv{position:absolute;left:0;top:0;outline:none;touch-action:none;display:block}
 #safe{position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 #ui{position:absolute;inset:0;pointer-events:none;--s:6px;
  --st:max(var(--s),env(safe-area-inset-top));--sr:max(var(--s),env(safe-area-inset-right));--sb:max(var(--s),env(safe-area-inset-bottom));--sl:max(var(--s),env(safe-area-inset-left))}
-#ui *{box-sizing:border-box}
+#ui *{box-sizing:border-box;touch-action:manipulation}
 #ui > *:not(.nopt), #ui button, .p9, .modal{pointer-events:auto}
 .nopt{pointer-events:none!important}
 .out{text-shadow:-2px 0 var(--outline),2px 0 var(--outline),0 -2px var(--outline),0 2px var(--outline)}
