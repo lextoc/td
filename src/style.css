@@ -445,3 +445,12 @@ html.reduce-motion #ui .bbar .barslot,html.reduce-motion #ui .bbar .start{transi
 @media(min-width:900px){.world-menu header{left:16px;right:auto;width:340px}.world-road{bottom:calc(72px + env(safe-area-inset-bottom))}}
 @media(max-width:350px){.world-menu header strong{font-size:16px}.world-road h2{font-size:18px}.world-road p{font-size:12px}.world-road button{min-width:78px}.world-hint{font-size:11px}}
 @media(max-height:500px) and (orientation:landscape){.world-road{left:auto;right:calc(8px + env(safe-area-inset-right));transform:none;width:320px}.world-menu header{right:auto;width:300px}.world-destinations{width:320px;grid-template-columns:1fr 1fr}.world-destinations button{flex-direction:column;align-items:flex-start;gap:4px}.world-destinations button strong{font-size:15px}}
+
+#ui .hud .stat{position:relative;isolation:isolate;overflow:visible}
+#ui .hud .resource-delta{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;white-space:nowrap;padding:3px 7px;border:1px solid currentColor;border-radius:6px;background:#21160ff2;font:16px/1.1 var(--display);text-shadow:0 1px 2px #000;box-shadow:0 2px 5px #0006;font-variant-numeric:tabular-nums}
+#ui .hud .resource-gold{color:#ffe39a}
+#ui .hud .resource-gain{color:#c7f39d}
+#ui .hud .resource-loss{color:#ff9e86}
+#ui .hud .resource-wave{color:#b9dfff}
+#ui .hud .resource-enemy{color:#e4d6bb;font-size:13px;padding:2px 5px}
+#ui.ended .hud .resource-delta{display:none}

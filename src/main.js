@@ -860,7 +860,50 @@ function endGame(win) {
 
 // ---------- HUD refresh (writes only on change) ----------
 let lastFrame = performance.now();
+function resourceFeedback(value, amount, kind) {
+  const previous = value._resourceAmount;
+  value._resourceAmount = amount;
+  if (previous == null || previous === amount) return;
+  const delta = amount - previous, now = performance.now(), slot = value.parentElement;
+  const tone = kind === 'wave' ? 'wave' : kind === 'enemies' ? 'enemy' : delta < 0 ? 'loss' : kind === 'gold' ? 'gold' : 'gain';
+  const colors = { gold: '#ffe39a', gain: '#c7f39d', loss: '#ff9e86', wave: '#b9dfff', enemy: '#e4d6bb' };
+  const color = colors[tone];
+  const prior = value._resourceFX;
+  const sum = prior && now - prior.time < 500 && Math.sign(prior.delta) === Math.sign(delta) ? prior.delta + delta : delta;
+  prior?.animation.cancel(); prior?.badge.remove();
+  const badge = h('span', slot, 'resource-delta resource-' + tone, kind === 'wave' ? `Wave ${amount}` : `${sum > 0 ? '+' : '−'}${Math.abs(sum)}`);
+  badge.setAttribute('aria-hidden', 'true');
+  const duration = kind === 'enemies' ? 650 : 1100;
+  const motionOff = reduced || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const animation = badge.animate(motionOff ? [
+    { opacity: 1, offset: 0 }, { opacity: 1, offset: .75 }, { opacity: 0 }
+  ] : [
+    { opacity: 0, transform: 'translate(-50%, -5px) scale(.85)', offset: 0 },
+    { opacity: 1, transform: 'translate(-50%, 0) scale(1.1)', offset: .15 },
+    { opacity: 1, transform: 'translate(-50%, 3px) scale(1)', offset: .65 },
+    { opacity: 0, transform: 'translate(-50%, 12px) scale(1)' }
+  ], { duration, easing: 'ease-out' });
+  animation.onfinish = () => badge.remove();
+  value._resourceFX = { delta: sum, time: now, animation, badge };
+  value._resourcePulse?.cancel();
+  value._resourcePulse = value.animate([{ color }, { color: getComputedStyle(value).color }], { duration: 600 });
+  if (!motionOff) {
+    const icon = slot.querySelector('.hudico');
+    if (icon) { icon._resourcePulse?.cancel(); icon._resourcePulse = icon.animate([
+      { transform: 'scale(1)' }, { transform: `translateY(-2px) scale(${kind === 'enemies' ? 1.12 : 1.3})`, offset: .25 }, { transform: 'scale(1)' }
+    ], { duration: 380, easing: 'ease-out' }); }
+  }
+  value._resourceGlow?.cancel();
+  value._resourceGlow = slot.animate([
+    { boxShadow: `inset 0 0 12px ${color}88, 0 0 7px ${color}66`, borderColor: color },
+    { boxShadow: 'inset 0 2px 3px #000b, 0 1px 0 #e4b56333', borderColor: '#a47b3c' }
+  ], { duration: kind === 'enemies' ? 300 : 700, easing: 'ease-out' });
+}
 function refreshHUD(realDt) {
+  resourceFeedback(H$.gold, g.gold, 'gold');
+  resourceFeedback(H$.lives, g.lives, 'lives');
+  resourceFeedback(H$.left, g.phase === 'wave' ? g.remaining : 0, 'enemies');
+  resourceFeedback(H$.wave2, g.wave, 'wave');
   const gd = g.gold - g.shownGold;
   g.shownGold = reduced || Math.abs(gd) < 1 ? g.gold : g.shownGold + gd * Math.min(1, realDt / 0.1);
   setT(H$.gold, Math.round(g.shownGold));
