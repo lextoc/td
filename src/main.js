@@ -1,6 +1,9 @@
-import M from './manifest.json';
+import manifest from './manifest.json';
 import './style.css';
 import { genMaps } from './mapgen.js';
+
+const M = JSON.parse(JSON.stringify(manifest), (_key, value) =>
+  typeof value === 'string' && value.startsWith('assets/') ? import.meta.env.BASE_URL + value : value);
 
 // ---------- setup / theme ----------
 const TS = 128; // world units: one tile = 128 px of art
