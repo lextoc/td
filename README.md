@@ -60,3 +60,6 @@ Both gameplay and the kingdom hub use `src/atmosphere.js`: a warm highlight-only
 
 ## Sprite timing and transitions
 `src/animation.js` centralizes safe frame sampling, tower recoil, death fades, effect envelopes and cannon arcs. Towers have staggered idle phases and recover smoothly from attacks; hit reactions use the complete sheet; deaths fade at the end of the existing sequence. Projectiles animate from their own launch time, magic/frost shots have short trails, and effect scales apply even without a manifest draw size. These are presentation changes: firing cadence, collision positions and damage are unchanged. Reduced motion removes extra recoil, arcs and trails. `node test/animation.mjs` checks timing, bounds and reduced-motion behavior.
+
+## Enemy presentation
+Mobs use `src/enemies.js` for grounded shadows, gentle hit recoil and short spawn fades. Damaged enemies have mobile-readable framed health bars with a delayed damage chip; frost adds an icy foot ring and small crystal marks. Trolls have a distinct threat ring and a larger labeled, gold-trimmed health bar. All feedback is visual and leaves health, targeting, paths and speeds unchanged. `node test/enemies.mjs` covers health trails, sizing, arrival and reduced motion.

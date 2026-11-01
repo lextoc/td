@@ -1,3 +1,4 @@
+import { markEnemyHit, updateEnemyVisuals, enemyAppearance, enemyHealth, drawEnemyGround } from './enemies.js';
 import { animationFrame, attackPose, deathOpacity, effectPose, projectileLift } from './animation.js';
 import { createAtmosphere } from './atmosphere.js';
 import { STRIDES, newWalk, advanceWalk, walkFrameTime, drawWalking } from './walking.js';
@@ -391,7 +392,7 @@ function spawn(type) {
 }
 function damage(e, n) {
   if (e.dead) return;
-  e.hp -= n; e.flash = .12;
+  markEnemyHit(e); e.hp -= n; e.flash = .12;
   if (e.hp <= 0) {
     play('enemy_death_' + (1 + Math.floor(Math.random() * 3)));
     e.dead = true; g.remaining--; g.stats.kills++; addGold(killReward(e.d.gold, g.kingdom)); g.dying.push({ type: e.type, x: e.x, y: e.y, face: e.face, t: 0 });
@@ -446,6 +447,7 @@ function step(dt) {
   }
   for (const e of g.enemies) {
     if (e.dead) continue;
+    updateEnemyVisuals(e, dt);
     if (e.slowT > 0) e.slowT -= dt; else e.slow = 0;
     e.dist += e.d.sp * selectedRoad.speed * TS * (1 - e.slow) * dt;
     const ox = e.x, oy = e.y; [e.x, e.y] = pathPos(e.dist);
@@ -1029,9 +1031,11 @@ function render() {
     const hit = e.flash > 0 && sprite('enemy.' + e.type, 'hit'), hf = hit ? frameOf({ ...hit, loop: false }, ((.12 - e.flash) / .12) * (hit.frames || 1) / (hit.fps || 12), e.face) : null;
     items.push([w2s(e.x, e.y + 36)[1], () => {
       at(e.x, e.y + 36);
-      if (hf) { ctx.translate(0, reduced ? 0 : -Math.sin((.12 - e.flash) / .12 * Math.PI) * 1.5); drawFrame(hf); }
-      else if (e.flash > 0) drawFrame(fr, 1, 1, 1, e.flash / .12 * .85);
-      else drawWalking(ctx, fr, walk, { reduced, weight: e.d.boss ? 1.6 : e.type === 'goblin' ? .8 : 1 });
+      drawEnemyGround(ctx, e, reduced);
+      const appearance = enemyAppearance(e, reduced); ctx.rotate(appearance.tilt); ctx.scale(appearance.scale, appearance.scale);
+      if (hf) { ctx.translate(0, reduced ? 0 : -Math.sin((.12 - e.flash) / .12 * Math.PI) * 1.5); drawFrame(hf, 1, 1, appearance.alpha); }
+      else if (e.flash > 0) drawFrame(fr, 1, 1, appearance.alpha, e.flash / .12 * .35);
+      else drawWalking(ctx, fr, walk, { reduced, shadow: false, alpha: appearance.alpha, weight: e.d.boss ? 1.6 : e.type === 'goblin' ? .8 : 1 });
     }]);
   }
   for (const d of g.dying) {
@@ -1085,10 +1089,21 @@ function render() {
   battleAtmosphere.draw(ctx, cv, { dt: atmosphereDt, dpr: L.dpr, ...visuals, reduced });
   // TD-11d: coin bursts above the kill dust / death puff so the coins actually read
   for (const e of g.enemies) {
-    if (e.hp >= e.max) continue;
+    if (e.hp >= e.max && !e.d.boss && e.slowT <= 0) continue;
     const fr = enemyFrame(e.type, 'walk', 0, e.face), hh = fr ? fr.ay : EN[e.type].h;
-    at(e.x, e.y + 36); ctx.fillStyle = T.outline; ctx.fillRect(-24, -hh - 14, 48, 6);
-    ctx.fillStyle = e.hp / e.max < .3 ? T.bad : T.good; ctx.fillRect(-24, -hh - 14, 48 * Math.max(0, e.hp / e.max), 6);
+    const bar = enemyHealth(e, L.k), x = -bar.width / 2, y = -hh - (bar.boss ? 20 : 14);
+    at(e.x, e.y + 36);
+    ctx.fillStyle = '#171611'; ctx.fillRect(x-2,y-2,bar.width+4,bar.height+4);
+    ctx.fillStyle = bar.boss ? '#ae8545' : '#a59671'; ctx.fillRect(x-1,y-1,bar.width+2,bar.height+2);
+    ctx.fillStyle = '#35251d';ctx.fillRect(x,y,bar.width,bar.height);
+    ctx.fillStyle = '#e5b56b';ctx.fillRect(x,y,bar.width*bar.trail,bar.height);
+    ctx.fillStyle = e.slowT > 0 ? '#8ed8ed' : bar.boss ? '#cc6650' : bar.fraction < .3 ? '#e88766' : '#9bc66b';
+    ctx.fillRect(x,y,bar.width*bar.fraction,bar.height);
+    ctx.fillStyle = '#fff4d0'; ctx.globalAlpha = .24;ctx.fillRect(x,y,bar.width*bar.fraction,1);ctx.globalAlpha=1;
+    if (bar.boss) {
+      ctx.fillStyle = '#e6bd72';ctx.beginPath();ctx.moveTo(x-7,y+bar.height/2);ctx.lineTo(x-3,y-2);ctx.lineTo(x+1,y+bar.height/2);ctx.lineTo(x-3,y+bar.height+2);ctx.closePath();ctx.fill();
+      ctx.font = `${Math.max(13,10/L.k)}px "${DISPLAY.family}", sans-serif`;ctx.textAlign='center';ctx.lineWidth=3/L.k;ctx.strokeStyle='#1b1712';ctx.strokeText('TROLL',0,y-6);ctx.fillStyle='#ffe2a2';ctx.fillText('TROLL',0,y-6);
+    }
   }
   // overlays
   if (g.radial != null) { at(...spotC(g.radial)); ctx.drawImage(IMG.place_valid, -64, -64, TS, TS); }
