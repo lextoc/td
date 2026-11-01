@@ -14,21 +14,29 @@ export function waveFor(wave, base, endless = false) {
 export function createWorld(parent, { images, terrain, knight, displayFont, skin, start, help, settings }) {
   const root = document.createElement('div'); root.className = 'world-menu'; parent.append(root);
   const canvas = document.createElement('canvas'); canvas.tabIndex = 0; canvas.setAttribute('aria-label', 'Explore the kingdom. Use WASD or arrow keys to walk, or tap a destination.'); root.append(canvas);
-  const top = document.createElement('header'); top.innerHTML = '<strong>THE KINGDOM</strong><span>Choose a road. Defend its castle.</span>'; top.style.cssText = skin.panel; root.append(top);
+  const top = document.createElement('header'); top.innerHTML = '<strong>THE KINGDOM</strong>'; top.style.cssText = skin.panel; root.append(top);
   const tools = document.createElement('nav'); tools.setAttribute('aria-label', 'Kingdom menu'); top.append(tools);
   const button = (p, text, fn) => { const b = document.createElement('button'); b.textContent = text; b.style.cssText = skin.button; b.onclick = fn; p.append(b); return b; };
-  button(tools, 'How to play', help); button(tools, 'Settings', settings);
+  const helpButton = button(tools, '?', help); helpButton.setAttribute('aria-label', 'How to play');
+  const settingsButton = button(tools, '⚙', settings); settingsButton.setAttribute('aria-label', 'Settings');
   const card = document.createElement('section'); card.className = 'world-road'; card.style.cssText = skin.panel; root.append(card);
-  const title = document.createElement('h2'), detail = document.createElement('p'); card.append(title, detail);
-  const enter = button(card, 'Defend castle', () => { if (near) { destroy(); start(near); } });
-  const destinations = document.createElement('nav'); destinations.className = 'world-destinations'; destinations.setAttribute('aria-label', 'Travel to a castle'); root.append(destinations);
+  const title = document.createElement('h2'), detail = document.createElement('p'); card.append(title, detail); card.hidden = true;
+  detail.id = 'world-road-description'; card.setAttribute('aria-describedby', detail.id);
+  const enter = button(card, 'Defend', () => { if (near) { destroy(); start(near); } });
+  const destinations = document.createElement('nav'); destinations.className = 'world-destinations'; destinations.id = 'world-destinations'; destinations.style.cssText = skin.panel; destinations.hidden = true; destinations.setAttribute('aria-label', 'Travel to a castle'); root.append(destinations);
+  let travelOpen = false;
+  function setTravel(open) { travelOpen = open; destinations.hidden = !open; travel.setAttribute('aria-expanded', String(open)); travel.textContent = open ? 'Close routes ×' : 'Choose a road'; card.hidden = open || !near; }
+  const travel = button(root, 'Choose a road', () => setTravel(!travelOpen)); travel.className = 'world-travel'; travel.setAttribute('aria-controls', destinations.id); travel.setAttribute('aria-expanded', 'false');
   const hero = { x: 900, y: 700 }, target = { ...hero }, keys = new Set(); let near = null, previous = '', alive = true, raf, last = 0;
-  ROADS.forEach(road => button(destinations, `${road.name} · ${road.difficulty}`, () => { target.x = road.x; target.y = road.y + 95; canvas.focus(); }));
-  const hint = document.createElement('div'); hint.className = 'world-hint'; hint.textContent = 'Tap to walk · WASD / arrows · Enter to defend'; root.append(hint);
+  const destinationButtons = ROADS.map(road => {
+    const b = button(destinations, '', () => { target.x = road.x; target.y = road.y + 95; setTravel(false); hint.textContent = `Walking to ${road.name}…`; canvas.focus(); });
+    const name = document.createElement('strong'), difficulty = document.createElement('span'); name.textContent = road.name; difficulty.textContent = road.difficulty; difficulty.className = 'difficulty difficulty-' + road.id; b.append(name, difficulty); return b;
+  });
+  const hint = document.createElement('div'); hint.className = 'world-hint'; hint.textContent = matchMedia('(pointer: coarse)').matches ? 'Tap the ground to explore' : 'Click to walk · WASD / arrows'; hint.setAttribute('role', 'status'); root.append(hint);
   const c = canvas.getContext('2d'); let scale = 1, ox = 0, oy = 0;
-  function pointer(e) { const r = canvas.getBoundingClientRect(); target.x = Math.max(45, Math.min(1755, (e.clientX - r.left - ox) / scale)); target.y = Math.max(120, Math.min(1350, (e.clientY - r.top - oy) / scale)); canvas.focus(); }
+  function pointer(e) { if (travelOpen) setTravel(false); const r = canvas.getBoundingClientRect(); target.x = Math.max(45, Math.min(1755, (e.clientX - r.left - ox) / scale)); target.y = Math.max(120, Math.min(1350, (e.clientY - r.top - oy) / scale)); canvas.focus(); }
   canvas.addEventListener('pointerdown', pointer);
-  function down(e) { if (!root.isConnected || parent.querySelector('.modal') || e.target.tagName === 'BUTTON') return; const k = e.key.toLowerCase(); if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)) { e.preventDefault(); keys.add(k); } if (k === 'enter' && near) enter.click(); }
+  function down(e) { if (!root.isConnected || parent.querySelector('.modal') || e.target.tagName === 'BUTTON') return; const k = e.key.toLowerCase(); if (k === 'escape' && travelOpen) { setTravel(false); travel.focus(); return; } if (['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)) { e.preventDefault(); keys.add(k); } if (k === 'enter' && near) enter.click(); }
   const up = e => keys.delete(e.key.toLowerCase()), blur = () => keys.clear();
   addEventListener('keydown', down); addEventListener('keyup', up); addEventListener('blur', blur);
   function destroy() { alive = false; cancelAnimationFrame(raf); removeEventListener('keydown', down); removeEventListener('keyup', up); removeEventListener('blur', blur); root.remove(); }
@@ -87,7 +95,13 @@ export function createWorld(parent, { images, terrain, knight, displayFont, skin
     if (Math.hypot(dx,dy) > 1) { walkTime += dt; facing = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'); } else walkTime = 0;
     hero.x = Math.max(45, Math.min(1755, hero.x)); hero.y = Math.max(120, Math.min(1350, hero.y));
     near = ROADS.find(r => Math.hypot(hero.x - r.x, hero.y - r.y - 95) < 160) || null;
-    if (previous !== (near?.id || '')) { previous = near?.id || ''; title.textContent = near ? `${near.name} · ${near.difficulty}` : 'Your next defense awaits'; detail.textContent = near ? near.description : 'Walk to a castle or choose a destination below.'; enter.disabled = !near; enter.textContent = near?.id === 'endless' ? 'Survive endless waves' : 'Defend castle'; }
+    if (previous !== (near?.id || '')) {
+      previous = near?.id || ''; card.hidden = !near || travelOpen; title.textContent = near?.name || '';
+      detail.textContent = near ? `${near.difficulty} · ${near.id === 'endless' ? 'Unlimited waves' : '10 waves'} · ${near.gold} gold` : '';
+      card.title = near?.description || ''; enter.disabled = !near; enter.textContent = near?.id === 'endless' ? 'Survive' : 'Defend';
+      destinationButtons.forEach((b,i) => b.setAttribute('aria-current', String(ROADS[i] === near)));
+      if (near) hint.textContent = near.difficulty + ' · ' + near.name;
+    }
     const w = root.clientWidth, h = root.clientHeight, dpr = (devicePixelRatio || 1);
     if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
     scale = Math.max(w / 1800, h / 1450, .55); ox = Math.max(w - 1800 * scale, Math.min(0, w / 2 - hero.x * scale)); oy = Math.max(h - 1450 * scale, Math.min(0, h * .48 - hero.y * scale));
@@ -105,6 +119,6 @@ export function createWorld(parent, { images, terrain, knight, displayFont, skin
     });
     raf = requestAnimationFrame(frame);
   }
-  title.textContent = 'Your next defense awaits'; detail.textContent = 'Walk to a castle or choose a destination below.'; enter.disabled = true;
+  enter.disabled = true;
   raf = requestAnimationFrame(frame); canvas.focus(); return destroy;
 }
