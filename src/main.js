@@ -522,7 +522,7 @@ function titleScreen() {
 }
 function worldScreen() {
   closeWorld?.(); screen = 'title'; g = null; clearUI(); modal = null; setMusic('menu');
-  closeWorld = createWorld(ui, { images: IMG, start: road => { selectedRoad = road; closeWorld = null; startGame(); }, help: howTo,
+  closeWorld = createWorld(ui, { images: IMG, terrain: M.terrain, knight: M.anims.knight_walk, displayFont: DISPLAY.family, skin: { panel: nine(M.ui.hudPanelTop, '', .28), button: nine(M.ui.button48, 'normal', .6) }, start: road => { selectedRoad = road; closeWorld = null; startGame(); }, help: howTo,
     settings: () => { const m = mkModal(); modal = m; const box = panel(m, 'mpanel');
       const sound = btn(box, muted ? 'Sound: Off' : 'Sound: On', () => { setMuted(!muted); sound.textContent = muted ? 'Sound: Off' : 'Sound: On'; });
       const motion = btn(box, reduced ? 'Motion: Reduced' : 'Motion: Full', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); syncMotion(); motion.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; });
