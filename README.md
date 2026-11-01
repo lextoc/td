@@ -44,4 +44,4 @@ The td-pack-3 sheets come from `/workspace/game-art/td-pack-3/assets.json` and a
 `public/assets/sounds`: tower fire SFX 01–10 from td-sounds.
 
 ## Kingdom research
-Tap the castle or press **K** for the Royal Council. Spend gold on 27 research ranks across Warfare, Treasury and Defense, emergency repairs, and one permanent doctrine per run. The game pauses while you choose. Maps without a castle have a Castle button. See [KINGDOM.md](KINGDOM.md) for costs, unlocks, effects and strategy. Run `npm run test:kingdom` for the research and engine checks.
+Tap the castle or press **K** for the Royal Council. Spend gold on 27 research ranks across Warfare, Treasury and Defense, emergency repairs, and one permanent doctrine per run. The game pauses while you choose. Every generated map reserves a clear castle site, and the camera includes the castle in the visible play area. See [KINGDOM.md](KINGDOM.md) for costs, unlocks, effects and strategy. Run `npm run test:kingdom` for the research and engine checks.

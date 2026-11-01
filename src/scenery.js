@@ -1,3 +1,11 @@
+export function mapBounds(map) {
+  const castle = map.castle;
+  const cells = [...map.spots, ...map.path, [castle.c, castle.r], [castle.c + castle.width - 1, castle.r + castle.height - 1]]
+    .filter(([c, r]) => c >= 0 && c < map.cols && r >= 0 && r < map.rows);
+  return { c0: Math.min(...cells.map(p => p[0])), c1: Math.max(...cells.map(p => p[0])),
+    r0: Math.min(...cells.map(p => p[1])), r1: Math.max(...cells.map(p => p[1])) };
+}
+
 export function findCastle(map, view) {
   const width = 3, height = 3, clearance = .75;
   const blocked = [...map.path, ...map.spots, map.entry, map.exit, ...(map.terrain.water || []),

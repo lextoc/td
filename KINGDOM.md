@@ -1,6 +1,6 @@
 # The Royal Council
 
-Tap the castle's Research label or press **K** to open the council. If a map has no room for a castle, a **Castle** button provides the same upgrades. The council pauses combat and the build countdown. Closing it resumes the run. Research is purchased immediately with the same gold used for towers; there are no research timers, passive interest, or permanent account bonuses. A new run resets everything.
+Tap the castle's Research label or press **K** to open the council. Every map has a castle with a reserved, clear site. Map generation retries layouts without room, and camera framing includes the entire castle. The council pauses combat and the build countdown. Closing it resumes the run. Research is purchased immediately with the same gold used for towers; there are no research timers, passive interest, or permanent account bonuses. A new run resets everything.
 
 ## Research
 
@@ -40,4 +40,4 @@ The opening choice is deliberately tight: starting gold is 250 and towers cost 7
 
 ## Validation
 
-`npm run test:kingdom` checks research gates and prerequisites, exact gold deductions, maximum ranks, doctrine exclusivity, repair caps, ward absorption, existing/new/upgraded tower stats, sell and undo behavior, wave rewards, run reset, and castle placement across 300 generated maps. Browser play-throughs remain in `npm test` after the kingdom checks.
+`npm run test:kingdom` checks research gates and prerequisites, exact gold deductions, maximum ranks, doctrine exclusivity, repair caps, ward absorption, existing/new/upgraded tower stats, sell and undo behavior, wave rewards, run reset, and mandatory castle placement across 3,000 generated maps. Browser play-throughs remain in `npm test` after the kingdom checks.

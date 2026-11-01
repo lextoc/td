@@ -1,7 +1,7 @@
 import manifest from './manifest.json';
 import './style.css';
 import { genMaps } from './mapgen.js';
-import { findCastle } from './scenery.js';
+import { mapBounds } from './scenery.js';
 import { RESEARCH, DOCTRINES, DOCTRINE_COST, REPAIR_COST, newKingdom, rankOf, totalRanks, modifiers, towerStats, researchOffer, buyResearch, doctrineOffer, chooseDoctrine, killReward, waveReward, sellValue, absorbLeak, buyRepair } from './kingdom.js';
 
 const M = JSON.parse(JSON.stringify(manifest), (_key, value) =>
@@ -173,7 +173,7 @@ function setMap(m) { // safe mid-run: towers are keyed by spot index (index-matc
   const frac = g && PLEN ? g.enemies.map(e => e.dist / PLEN) : null;
   MAP = m; COLS = m.cols; ROWS = m.rows; PATH_TILES = m.path; SPOTS = m.spots;
   SPOT_SET = new Set(SPOTS.map(s => s + ''));
-  { const cs = [...SPOTS, ...PATH_TILES].filter(([c, r]) => c >= 0 && c < COLS && r >= 0 && r < ROWS), xs = cs.map(p => p[0]), ys = cs.map(p => p[1]); m.bounds = { c0: Math.min(...xs), c1: Math.max(...xs), r0: Math.min(...ys), r1: Math.max(...ys) }; }
+  m.bounds = mapBounds(m);
   PATH_SET = new Map(PATH_TILES.map((p, i) => [p + '', pathArt(i)]));
   const ctr = ([c, r]) => [c * TS + 64, r * TS + 64];
   PTS = [ctr(m.entry), ...PATH_TILES.map(ctr), ctr(m.exit)];
@@ -245,10 +245,7 @@ function buildMapLayer() {
   for (const [key, name] of Object.entries(T.fixed || {})) { const [c, r] = key.split(',').map(Number); if (MT.props[name]) P.push([name, c * TS + 64, r * TS + 112]); }
   const fixed = new Set(Object.keys(T.fixed || {}));
   const castleProp = MT.props.castle;
-  const castle = castleProp && IMG[castleProp.image] ? findCastle(MAP, {
-    left: (L.play.x - L.ox) / (k * TS), top: (L.play.y - L.oy) / (k * TS),
-    right: (L.play.x + L.play.w - L.ox) / (k * TS), bottom: (L.play.y + L.play.h - L.oy) / (k * TS)
-  }) : null;
+  const castle = MAP.castle;
   castleSite = castle;
   if (castle) {
     P.push(['castle', castle.c * TS + castleProp.anchor[0], castle.r * TS + castleProp.anchor[1]]);
@@ -538,7 +535,7 @@ function howTo() {
    ['ui/hud2/icons/icon_tower_archer.png', 'Pick a tower', 'Tap a tower in the bottom bar. Tap it again (or its price) to build.'],
    ['ui/hud2/button_start_wave_normal.png', 'Start the wave', 'Tap Start wave when you are ready.'],
    ['ui/icon/icon_heart_96.png', 'Protect your lives', 'Each enemy that gets through costs a life. Keep them all out!'],
-   ['terrain/props/castle.png', 'Visit the castle', 'Tap Research on the castle, use the Castle button on maps without one, or press K. Spend gold on kingdom-wide research. The council pauses the game.']]
+   ['terrain/props/castle.png', 'Visit the castle', 'Every map has a castle. Tap its Research label or press K. Spend gold on kingdom-wide research. The council pauses the game.']]
     .forEach(([src, t, d], i) => { const li = h('li', ol, 'hstep'), im = h('img', li, 'nopt'); im.src = 'assets/' + src; im.alt = ''; const tx = h('div', li); h('b', tx, '', `${i + 1}. ${t}`); h('p', tx, '', d); });
   const ok = btn(h('div', inn, 'row'), 'Got it', () => { modal.remove(); modal = null; prev?.focus(); });
   modal.close = ok.onclick; ok.focus();
@@ -572,7 +569,6 @@ function startGame() {
   H$.sel = h('div', ui, 'selwrap');
   H$.tip = h('div', ui, 'tipb nopt'); H$.tip.hidden = true;
   H$.live = h('div', ui, 'sr'); H$.live.setAttribute('aria-live', 'polite');
-  H$.kingdom = btn(ui, 'Castle · K', openCastle, 'Open castle research (K)', 'kingdom-launch');
   H$.castleMap = h('button', ui, 'castle-hit'); H$.castleMap.setAttribute('aria-label', 'Castle: open kingdom research');
   H$.castleMap.onclick = () => { play('ui_click'); openCastle(); };
   h('span', H$.castleMap, 'castle-label', 'Research');
@@ -707,17 +703,12 @@ function applyKingdomPurchase(result) {
   play('upgrade'); buzz(); return true;
 }
 function updateCastleAccess() {
-  if (!H$.kingdom) return;
+  if (!H$.castleMap) return;
   const blocked = g.over || !!modal;
-  H$.kingdom.disabled = blocked;
-  H$.kingdom.style.top = `${(L.hudR ? L.hudR.y + L.hudR.h : L.safe.t) + 8}px`;
-  H$.kingdom.style.left = `${L.play.x + 6}px`;
-  H$.kingdom.hidden = !!castleSite || g.over;
   const b = H$.castleMap; b.hidden = !castleSite || g.over; b.disabled = blocked;
   const m = modifiers(g.kingdom);
   setT(b.firstElementChild, m.wards ? `Research · ${g.kingdom.wards}/${m.wards} wards` : 'Research');
   b.title = `Royal Council: ${totalRanks(g.kingdom)} research ranks, ${g.gold} gold. Press K to open.`;
-  H$.kingdom.title = b.title;
   if (castleSite) {
     const [x, y] = w2s(castleSite.c * TS, castleSite.r * TS);
     Object.assign(b.style, { left: `${x}px`, top: `${y}px`, width: `${384 * L.k}px`, height: `${302 * L.k}px` });

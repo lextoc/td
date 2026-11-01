@@ -2,6 +2,8 @@
 // Each variant: one non-self-touching path from the west edge to the east edge (mirrored by the seed), 25±2 tiles,
 // 14 build spots 8-adjacent to the path with comparable coverage, sorted by path position so spot i sits at the same
 // stretch of road in every variant (towers survive rotation). Pure module: used by the game and scripts/validate-maps.mjs.
+import { findCastle } from './scenery.js';
+
 export const SIZES = { portrait: [8, 15], landscape: [15, 8], square: [11, 11] };
 export const LEN = [23, 27], NSPOTS = 14, RANGE = 2.5, COVER = [7, 12]; // path tiles within archer range (2.5) of a spot
 export const mulberry32 = a => () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -52,8 +54,12 @@ export function genVariant(seed, id, tpl) {
     const busy = new Set([...on, ...spots.map(s => s[0] + ',' + s[1])]), roadRows = new Set([f[1], l[1]]);
     const near = ([c, r]) => [...busy].some(k => { const [x, y] = k.split(',').map(Number); return Math.abs(x - c) <= 1 && Math.abs(y - r) <= 1; });
     const water = (tpl.terrain.water || []).filter(w => !near(w) && !roadRows.has(w[1]) && !(w[0] >= 0 && w[0] < C && w[1] >= 1 && w[1] < Rw - 1));
-    return { ...tpl, name: `Random #${seed} (${id})`, seed, tries, entry: side(f), exit: side(l), path, spots: spots.map(s => [s[0], s[1]]),
+    const map = { ...tpl, name: `Random #${seed} (${id})`, seed, tries, entry: side(f), exit: side(l), path, spots: spots.map(s => [s[0], s[1]]),
       terrain: { ...tpl.terrain, seed: seed % 100000, water, fixed: {}, bridges: [] } };
+    const castle = findCastle(map, { left: 0, top: 0, right: C, bottom: Rw });
+    if (!castle) continue;
+    return { ...map, castle };
   }
 }
 export const genMaps = (seed, tpls) => Object.fromEntries(Object.keys(SIZES).map(id => [id, genVariant(seed, id, tpls[id])]));
+
