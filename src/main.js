@@ -373,14 +373,14 @@ function damage(e, n) {
   }
 }
 const floatText = (x, y, s, col) => g.parts.push({ x, y, vx: 0, vy: -90, t: 0, life: .9, col, sz: 0, gr: 0, kind: 'text', s });
-function addFx(k, x, y, s = 1) { g.fx.push({ k, x, y, t: 0, s }); }
+function addFx(k, x, y, s = 1, top = false) { g.fx.push({ k, x, y, t: 0, s, top }); }
 function sparks(x, y, col, n = 7) { if (reduced) n = 3; for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = 120 + Math.random() * 220; g.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, t: 0, life: .25 + Math.random() * .2, col }); } }
 // small particle system (world units): kind 'sq' spark, 'dust' soft puff, 'coin' gold disc, 'ring' expanding ring
 function burst(x, y, o = {}) { const n = reduced ? Math.ceil((o.n || 8) / 3) : (o.n || 8);
   for (let i = 0; i < n; i++) { const a = o.up ? -Math.PI * (.15 + .7 * Math.random()) : Math.random() * 6.283, v = (o.v || 150) * (.4 + .6 * Math.random());
     g.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: (o.life || .4) * (.7 + .5 * Math.random()), col: o.col || '#fff', sz: o.sz || 8, gr: o.gr ?? 600, kind: o.kind || 'sq' }); } }
 const ring = (x, y, col = '#ffe08a', r = 70, life = .35) => g.parts.push({ x, y, vx: 0, vy: 0, t: 0, life, col, sz: r, gr: 0, kind: 'ring' });
-const coinFx = (x, y, big) => { addFx('fx_coin_burst', x, y, big ? 1.8 : 1); if (big && !reduced) { addFx('fx_coin_burst', x - 70, y + 20); addFx('fx_coin_burst', x + 70, y + 20); } }; // TD-11c sprite coin burst
+const coinFx = (x, y, big) => { addFx('fx_coin_burst', x, y, big ? 1.8 : 1, true); if (big && !reduced) { addFx('fx_coin_burst', x - 70, y + 20, 1, true); addFx('fx_coin_burst', x + 70, y + 20, 1, true); } }; // TD-11d: top layer = drawn after particles + death puffs // TD-11c sprite coin burst
 let shakeT = 0, shakeA = 0; const shake = a => { if (!reduced) { shakeA = Math.max(shakeA, a); shakeT = .35; } };
 const SPARK = { archer: '#f2deb0', cannon: '#ffb347', mage: '#c58bff', frost: '#bfefff', tesla: '#fff27a' };
 function inRange(t, e) { const [cx, cy] = spotC(t.spot); return Math.hypot(e.x - cx, e.y - cy) <= t.st[3] * TS; }
@@ -480,7 +480,7 @@ function titleScreen() {
   img(ui, 'title_bg', 'nopt bgcover'); h('div', ui, 'dim nopt').style.opacity = .4;
   const wrap = h('div', ui, 'modal title'), card = h('div', wrap, 'tcard');
   if (M.logo) img(card, M.logo, 'nopt logo');
-  ribbon(card, M.logo ? '' : 'TD', 'trib');
+  ribbon(card, M.logo ? 'Hold the line' : 'TD', 'trib' + (M.logo ? ' tag' : '')); // TD-11d: live tagline on the menu ribbon
   const inn = panel(card, 'tpanel', false), box = h('div', inn, 'col');
   setMusic('menu');
   const foot = h('div', inn, 'foot', 'Hold the road. 10 waves. 20 lives.');
@@ -812,7 +812,8 @@ function render() {
     if (!fr) continue; at(x1, y1); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
     const len = Math.hypot(x2 - x1, y2 - y1); ctx.globalAlpha = Math.min(1, r.t / .06); ctx.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, 0, -fr.ay, len, fr.sh); ctx.globalAlpha = 1;
   }
-  for (const f of g.fx) { const a = ANIM[f.k] || { sheet: f.k, frameWidth: 128, frameHeight: 128, frames: 4, fps: 12, anchor: [.5, .5], loop: false }; at(f.x, f.y); const fr = frameOf(a, reduced ? .17 : f.t, 'right'), z = fr && a.drawSize ? a.drawSize / fr.sw * (f.s || 1) : 1; drawFrame(fr, z, z); }
+  const drawFx = top => { for (const f of g.fx) { if (!!f.top !== top) continue; const a = ANIM[f.k] || { sheet: f.k, frameWidth: 128, frameHeight: 128, frames: 4, fps: 12, anchor: [.5, .5], loop: false }; at(f.x, f.y); const fr = frameOf(a, reduced ? Math.min(.34, (a.frames || 4) / (a.fps || 12) / 2) : f.t, 'right'), z = fr && a.drawSize ? a.drawSize / fr.sw * (f.s || 1) : 1; drawFrame(fr, z, z); } };
+  drawFx(false);
   for (const q of g.parts) { const k = q.kind || 'sq', a = 1 - q.t / q.life; at(q.x, q.y); ctx.globalAlpha = a;
     if (k === 'sq') { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = q.col; const z = q.sz || 8; ctx.fillRect(-z / 2, -z / 2, z, z); ctx.globalCompositeOperation = 'source-over'; }
     else if (k === 'dust') { ctx.globalAlpha = a * .7; ctx.fillStyle = q.col; ctx.beginPath(); ctx.arc(0, 0, q.sz * (1 + q.t / q.life), 0, 6.283); ctx.fill(); }
@@ -820,6 +821,7 @@ function render() {
     else if (k === 'ring') { ctx.strokeStyle = q.col; ctx.lineWidth = 8 * a; ctx.beginPath(); ctx.arc(0, 0, q.sz * (.3 + .7 * (1 - a * a)), 0, 6.283); ctx.stroke(); }
     else if (k === 'text') { ctx.font = `${Math.round(20 / L.k)}px "${DISPLAY.family}", sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 7 / L.k; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1e120a'; ctx.globalAlpha = Math.min(1, a * 2); ctx.strokeText(q.s, 0, 0); ctx.fillStyle = q.col; ctx.fillText(q.s, 0, 0); }
   } ctx.globalAlpha = 1;
+  drawFx(true); // TD-11d: coin bursts above the kill dust / death puff so the coins actually read
   for (const e of g.enemies) {
     if (e.hp >= e.max) continue;
     const fr = enemyFrame(e.type, 'walk', 0, e.face), hh = fr ? fr.ay : EN[e.type].h;

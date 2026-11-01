@@ -331,3 +331,11 @@ button.slot.off .cost{color:#e8dcc8;text-decoration:line-through 2px}
 html.reduce-motion .modal.title *,html.reduce-motion .modal.howto *,html.reduce-motion .endscr *,html.reduce-motion .modal.title .tcard,html.reduce-motion .endscr .tcard{animation:none !important}
 html.reduce-motion #ui .bbar .barslot,html.reduce-motion #ui .bbar .start{transition:none!important}html.reduce-motion #ui .bbar .barslot:active,html.reduce-motion #ui .bbar .start:active,html.reduce-motion #ui .bbar .barslot.sel{transform:none!important}
 /* ===== end TD-11 ===== */
+/* TD-11d: short landscape (e.g. 844x390): the boss portrait sat 84px above the ribbon and poked into the top HUD next to the wave crest.
+   There the portrait moves just left of the ribbon (cap stays visible; +54px = 9-slice cap border, abs-pos is relative to the padding box) and the banner sits a bit lower, so ribbon + portrait + subtitle clear the HUD. */
+@media (orientation:landscape) and (max-height:500px){
+  .banner.b-boss{top:40%}
+  .banner.b-boss .bport{left:auto;right:calc(100% + 54px);top:50%;width:76px;height:76px;transform:translateY(-50%)}
+}
+/* TD-11d: menu ribbon tagline (live text, >=16px, sized to the ribbon body) */
+.tcard .trib.tag .rib-t{font-size:clamp(16px,calc(22px*var(--u)),26px);letter-spacing:.04em;padding:0 18%;white-space:nowrap;color:#fff4d6}
