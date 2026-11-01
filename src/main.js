@@ -689,12 +689,14 @@ function endGame(win) {
   g.over = true; closePanels(); setMusic(null); play(win ? 'stinger_win' : 'stinger_lose');
   const best = JSON.parse(localStorage.getItem('td.best') || 'null'), cur = { wave: g.wave, lives: win ? g.lives : 0 };
   if (!best || cur.wave > best.wave || (cur.wave === best.wave && cur.lives > best.lives)) localStorage.setItem('td.best', JSON.stringify(cur));
-  modal = mkModal(); const wrap = h('div', modal, 'tcard'); ribbon(wrap, win ? 'Victory!' : 'Defeat', 'trib'); const inn = panel(wrap, 'mpanel');
-  h('div', inn, 'mtext center big2', win ? `The road holds. Lives left: ${g.lives} / 20` : `The enemy broke through on wave ${g.wave}.`);
-  const s = Math.floor(g.stats.time);
-  h('div', inn, 'mtext center', `Enemies defeated: ${g.stats.kills} · Gold earned: ${g.stats.gold.toLocaleString('en-US')} · Time: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
+  modal = mkModal(); modal.classList.add('endscr', win ? 'win' : 'lose'); const wrap = h('div', modal, 'tcard'); ribbon(wrap, win ? 'Victory!' : 'Defeat', 'trib'); const inn = panel(wrap, 'mpanel');
+  h('div', inn, 'mtext center big2', win ? 'The road holds!' : `The enemy broke through on wave ${g.wave}.`);
+  const s = Math.floor(g.stats.time), st = h('div', inn, 'estats');
+  [['icon_wave_96', 'Waves', `${Math.min(g.wave, WAVES.length)} / ${WAVES.length}`], ['icon_heart_96', 'Lives left', `${win ? g.lives : 0} / 20`], ['icon_gold_96', 'Gold earned', g.stats.gold.toLocaleString('en-US')], ['icon_skull_96', 'Kills', `${g.stats.kills}`]]
+    .forEach(([ic, l, v]) => { const d = h('div', st, 'estat'), im = h('img', d, 'nopt'); im.src = `assets/ui/icon/${ic}.png`; im.alt = ''; h('b', d, '', v); h('span', d, '', l); });
+  h('div', inn, 'mtext center etime', `Towers standing: ${Object.keys(g.towers).length} · Time: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
   const r = h('div', inn, 'row');
-  const a = btn(r, win ? 'Play again' : 'Retry', () => { modal = null; startGame(); });
+  const a = btn(r, 'Play again', () => { modal = null; startGame(); }, 'Play again', 'eplay');
   btn(r, 'Title', () => { modal = null; titleScreen(); });
   modal.result = win ? 'win' : 'lose'; a.focus();
 }
