@@ -485,8 +485,14 @@ let modal = null;
 function mkModal(parent = ui) { const m = h('div', parent, 'modal'); h('div', m, 'dim'); return m; }
 function howTo() {
   const prev = document.activeElement;
-  modal = mkModal(); const inn = panel(modal, 'mpanel');
-  h('div', inn, 'mtext', 'Tap or click a build spot, pick a tower, and stop enemies before they reach the exit. Each leaked enemy costs lives. Earn gold from kills and wave clears. Tap a tower to see its range, upgrade or sell it.');
+  modal = mkModal(); modal.classList.add('howto'); const inn = panel(modal, 'mpanel');
+  h('h2', inn, 'htitle display', 'How to play');
+  const ol = h('ol', inn, 'hsteps');
+  [['ui/slot/slot_normal.png', 'Tap a spot', 'Tap an empty build spot on the map.'],
+   ['ui/hud2/icons/icon_tower_archer.png', 'Pick a tower', 'Tap a tower in the bottom bar. Tap it again (or its price) to build.'],
+   ['ui/hud2/button_start_wave_normal.png', 'Start the wave', 'Tap Start wave when you are ready.'],
+   ['ui/icon/icon_heart_96.png', 'Protect your lives', 'Each enemy that gets through costs a life. Keep them all out!']]
+    .forEach(([src, t, d], i) => { const li = h('li', ol, 'hstep'), im = h('img', li, 'nopt'); im.src = 'assets/' + src; im.alt = ''; const tx = h('div', li); h('b', tx, '', `${i + 1}. ${t}`); h('p', tx, '', d); });
   const ok = btn(h('div', inn, 'row'), 'Got it', () => { modal.remove(); modal = null; prev?.focus(); });
   modal.close = ok.onclick; ok.focus();
 }
