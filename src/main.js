@@ -47,6 +47,7 @@ function mobileCSS() { // td-pack-2/ui/mobile skin for sheet + rail modes, gener
   R.push(`#ui .bbar .barslot:active .tbox{background-image:url("${uiSrc(U.slot64, 'pressed')}")}#ui .bbar .barslot.off .tbox{background-image:url("${uiSrc(U.slot64, 'disabled')}")}`);
   // TD-10: no towerSlotSel overlay (its cost plate would sit on the icon); selection = slot64 'selected' frame round the whole slot
   R.push(`#ui:not(.m-desktop) .wbar{${nine(U.waveFrame, '', 1)}background:none;box-sizing:border-box;padding:0}`, `#ui:not(.m-desktop) .wfill{${nine(U.waveFill, '', 1)}border-top-width:0;border-bottom-width:0;background:none;box-sizing:border-box;min-width:12px}`);
+  st('#ui:not(.m-desktop) .hud', U.hudPanelTop, '', 0.5); R.push(`#ui:not(.m-desktop) .hud{background-image:none!important;border-radius:0}`);
   R.push(`#ui:not(.m-desktop) .tipb{${nine(U.tooltip, '')}background:none;color:#2a1a12}`);
   const e = document.createElement('style'); e.id = 'mobile-skin'; e.textContent = R.join('\n'); document.head.appendChild(e);
 }
@@ -340,19 +341,22 @@ function newGame() {
   g.shownGold = g.gold;
 }
 function addGold(n) { g.gold += n; g.stats.gold += n; }
+const BREATHER = 12, BOSS_BREATHER = 18; // seconds between waves; the finale gets a longer build-up
+const isBoss = w => WAVES[w - 1]?.[0].some(([t]) => EN[t].boss);
 function startWave() {
   if (!g || g.phase !== 'build' || g.over || g.wave >= WAVES.length) return;
   const bonus = Math.floor(g.countdown);
-  if (bonus > 0) { addGold(bonus); play('coin'); toast(`+${bonus} early bonus`); }
+  if (bonus > 0) { addGold(bonus); play('coin'); toast(`Early start! +${bonus} gold`); }
   g.wave++; g.phase = 'wave';
   const [groups, iv] = WAVES[g.wave - 1];
   g.queue = groups.flatMap(([t, n]) => Array(n).fill(t)); g.interval = iv; g.spawnT = 0;
   g.total = g.remaining = g.queue.length;
-  play('wave_start'); banner(`Wave ${g.wave} — ${waveLabel(g.wave)}`);
+  play('wave_start'); shake(isBoss(g.wave) ? 6 : 3);
+  if (isBoss(g.wave)) banner('Final wave!', 'The Troll leads the horde', 'boss', 'avatar_troll'); else banner(`Wave ${g.wave}`, waveLabel(g.wave));
 }
 function spawn(type) {
   const d = EN[type], hp = d.boss ? d.hp : Math.floor(d.hp * (1 + HP_SCALE * (g.wave - 1)));
-  if (d.boss) toast(`The ${d.name} is coming!`, 3000, 'avatar_troll');
+  if (d.boss) { play('boss_intro'); shake(12); banner(`The ${d.name}!`, `${d.hp} HP · costs ${d.lives} lives if it gets through`, 'boss', 'avatar_troll', 2800); }
   g.enemies.push({ type, d, hp, max: hp, dist: 0, slow: 0, slowT: 0, x: PTS[0][0], y: PTS[0][1], walkT: Math.random(), face: 'right', flash: 0 });
 }
 function damage(e, n) {
@@ -361,11 +365,20 @@ function damage(e, n) {
   if (e.hp <= 0) {
     play('enemy_death_' + (1 + Math.floor(Math.random() * 3)));
     e.dead = true; g.remaining--; g.stats.kills++; addGold(e.d.gold); g.dying.push({ type: e.type, x: e.x, y: e.y, face: e.face, t: 0 });
+    burst(e.x, e.y - 30, { n: e.d.boss ? 40 : 10, col: '#e8d9b8', sz: e.d.boss ? 14 : 9, v: e.d.boss ? 320 : 180, life: .5, gr: 200, kind: 'dust' }); coins(e.x, e.y - 40, e.d.boss ? 12 : 2); if (e.d.boss) shake(14);
     if (!sprite('enemy.' + e.type, 'death')) addFx(M.sprites?.['enemy.' + e.type]?.deathFx || 'fx_death_puff', e.x, e.y); if (!reduced) addFx('fx_coin_pop', e.x, e.y - 40);
   }
 }
+const floatText = (x, y, s, col) => g.parts.push({ x, y, vx: 0, vy: -90, t: 0, life: .9, col, sz: 0, gr: 0, kind: 'text', s });
 function addFx(k, x, y) { g.fx.push({ k, x, y, t: 0 }); }
 function sparks(x, y, col, n = 7) { if (reduced) n = 3; for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = 120 + Math.random() * 220; g.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, t: 0, life: .25 + Math.random() * .2, col }); } }
+// small particle system (world units): kind 'sq' spark, 'dust' soft puff, 'coin' gold disc, 'ring' expanding ring
+function burst(x, y, o = {}) { const n = reduced ? Math.ceil((o.n || 8) / 3) : (o.n || 8);
+  for (let i = 0; i < n; i++) { const a = o.up ? -Math.PI * (.15 + .7 * Math.random()) : Math.random() * 6.283, v = (o.v || 150) * (.4 + .6 * Math.random());
+    g.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: (o.life || .4) * (.7 + .5 * Math.random()), col: o.col || '#fff', sz: o.sz || 8, gr: o.gr ?? 600, kind: o.kind || 'sq' }); } }
+const ring = (x, y, col = '#ffe08a', r = 70, life = .35) => g.parts.push({ x, y, vx: 0, vy: 0, t: 0, life, col, sz: r, gr: 0, kind: 'ring' });
+const coins = (x, y, n) => burst(x, y, { n, col: '#ffd34d', sz: 10, v: 260, life: .7, gr: 900, kind: 'coin', up: true });
+let shakeT = 0, shakeA = 0; const shake = a => { if (!reduced) { shakeA = Math.max(shakeA, a); shakeT = .35; } };
 const SPARK = { archer: '#f2deb0', cannon: '#ffb347', mage: '#c58bff', frost: '#bfefff', tesla: '#fff27a' };
 function inRange(t, e) { const [cx, cy] = spotC(t.spot); return Math.hypot(e.x - cx, e.y - cy) <= t.st[3] * TS; }
 function fire(t) {
@@ -397,7 +410,7 @@ function hitProj(p) {
 }
 function step(dt) {
   g.stats.time += dt;
-  if (g.phase === 'build') { g.countdown -= dt; if (g.countdown <= 0) { g.countdown = 0; startWave(); } }
+  if (g.phase === 'build') { g.countdown -= dt; if (g.countdown <= 3 && Math.ceil(g.countdown) !== Math.ceil(g.countdown + dt)) play('ui_hover'); if (g.countdown <= 0) { g.countdown = 0; startWave(); } }
   else {
     if (g.queue.length && (g.spawnT -= dt) <= 0) { spawn(g.queue.shift()); g.spawnT = g.interval; }
   }
@@ -410,7 +423,7 @@ function step(dt) {
     e.walkT += dt * e.d.sp * (1 - e.slow); if (e.flash > 0) e.flash -= dt;
     if (e.dist >= PLEN) { e.dead = e.leaked = true; g.remaining--; (g.leaks ??= {})[e.type] = (g.leaks[e.type] || 0) + 1; g.lives = Math.max(0, g.lives - e.d.lives); g.heartFlash = .2; play('life_lost'); }
   }
-  for (const t of Object.values(g.towers)) { if (t.atk > 0) t.atk -= dt; t.cd -= dt; if (t.cd <= 0 && fire(t)) t.cd = 1 / t.st[2]; }
+  for (const t of Object.values(g.towers)) { if (t.pop > 0) t.pop -= dt; if (t.atk > 0) t.atk -= dt; t.cd -= dt; if (t.cd <= 0 && fire(t)) t.cd = 1 / t.st[2]; }
   const sp = 8 * TS * dt;
   for (const p of g.projs) {
     if (p.wait > 0) { p.wait -= dt; continue; }
@@ -422,13 +435,14 @@ function step(dt) {
   g.enemies = g.enemies.filter(e => !e.dead);
   for (const f of g.fx) f.t += dt; g.fx = g.fx.filter(f => f.t < animDur(f.k));
   for (const d of g.dying) d.t += dt; g.dying = g.dying.filter(d => d.t < deathDur(d.type));
-  for (const q of g.parts) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 600 * dt; } g.parts = g.parts.filter(q => q.t < q.life);
+  for (const q of g.parts) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += (q.gr ?? 600) * dt; if (q.kind === 'dust') { q.vx *= .9; q.vy *= .9; } } g.parts = g.parts.filter(q => q.t < q.life);
   for (const a of g.arcs) a.t -= dt; g.arcs = g.arcs.filter(a => a.t > 0);
   if (g.lives <= 0) return endGame(false);
   if (g.phase === 'wave' && !g.queue.length && !g.enemies.length) {
-    const b = 20 + 5 * g.wave; addGold(b); play('coin'); toast(`Wave cleared! +${b} gold`);
+    const b = 20 + 5 * g.wave; addGold(b); play('coin');
     if (g.wave >= WAVES.length) return endGame(true);
-    g.phase = 'build'; g.countdown = 12;
+    banner(`Wave ${g.wave} cleared`, `+${b} gold · ${isBoss(g.wave + 1) ? 'the Troll comes next!' : 'build up'}`, 'clear');
+    g.phase = 'build'; g.countdown = isBoss(g.wave + 1) ? BOSS_BREATHER : BREATHER;
   }
 }
 
@@ -436,17 +450,19 @@ function step(dt) {
 function build(spot, type) {
   if (g.towers[spot] || g.over) return false;
   const c = TW[type].lv[0][0]; if (g.gold < c) { play('ui_error'); return false; }
-  play('build'); g.gold -= c; g.towers[spot] = { spot, type, lv: 1, st: TW[type].lv[0], cd: 0, invested: c };
+  play('build'); g.gold -= c; g.towers[spot] = { spot, type, lv: 1, st: TW[type].lv[0], cd: 0, invested: c, pop: .35 };
+  { const [x, y] = spotC(spot); burst(x, y + 40, { n: 14, col: '#c9a878', sz: 12, v: 200, life: .55, gr: -40, kind: 'dust', up: true }); ring(x, y + 30, '#ffe08a', 80); floatText(x, y - 80, `-${c}`, '#ffb3a0'); }
   closePanels(); return true;
 }
 function upgrade(spot) {
   const t = g.towers[spot]; if (!t || t.lv >= 3) return false;
   const c = TW[t.type].lv[t.lv][0]; if (g.gold < c) { play('ui_error'); return false; }
-  play('upgrade'); g.gold -= c; t.invested += c; t.lv++; t.st = TW[t.type].lv[t.lv - 1]; if (g.sel === spot) openSel(spot, true); buzz(); return true;
+  play('upgrade'); g.gold -= c; t.invested += c; t.lv++; t.pop = .35; { const [x, y] = spotC(spot); burst(x, y - 40, { n: 16, col: '#ffe08a', sz: 7, v: 220, life: .6, gr: 200, up: true }); ring(x, y, '#9fe870', 90); floatText(x, y - 100, `Lv ${t.lv}!`, '#9fe870'); } t.st = TW[t.type].lv[t.lv - 1]; if (g.sel === spot) openSel(spot, true); buzz(); return true;
 }
 function sell(spot) {
   const t = g.towers[spot]; if (!t) return false;
-  const r = Math.floor(t.invested * .7); g.gold += r; play('sell'); delete g.towers[spot];
+  const r = Math.floor(t.invested * .7); g.gold += r; play('sell'); play('coin'); delete g.towers[spot];
+  { const [x, y] = spotC(spot); coins(x, y - 30, 10); burst(x, y + 40, { n: 10, col: '#c9a878', sz: 11, v: 160, life: .5, gr: -30, kind: 'dust', up: true }); floatText(x, y - 80, `+${r}`, '#ffd34d'); }
   g.undo = { t, r, until: performance.now() + 3000 }; closePanels(); toast(`Sold for ${r}`, 3000, null, ['Undo', undoSell]); buzz(); return true;
 }
 function undoSell() {
@@ -506,7 +522,7 @@ function stat(p, icon, cls = '') { const s = h('div', p, 'stat ' + cls), i = img
 function startGame() {
   newSeed(); g = null; setMap(pickMap());
   screen = 'game'; newGame(); clearUI(); setMusic('battle');
-  const hud = H$.hud = h('div', ui, 'hud'); hud.style.backgroundImage = url('hud_body');
+  const hud = H$.hud = h('div', ui, 'hud'); hud.style.backgroundImage = url('hud_body'); H$.hud.title = '';
   const a = h('div', hud, 'hgrp');
   H$.gold = stat(a, 'icon_gold')[1]; [H$.heart, H$.lives] = stat(a, 'icon_heart'); H$.leftS = stat(a, 'icon_skull', 'skull'); H$.left = H$.leftS[1];
   const wc = h('div', hud, 'hgrp wavechip'); img(wc, 'icon_wave', 'nopt hudico'); H$.wave2 = h('span', wc, 'out display num');
@@ -641,10 +657,13 @@ function toast(s, ms = 2000, portrait, action) {
   if (action) { const b = btn(t, M.icons.undo?.text || action[0], () => { action[1](); H$.toast.innerHTML = ''; }, action[0], 'undo'); if (M.icons.undo?.image && IMG[M.icons.undo.image]) setIcon(b, 'undo'); }
   clearTimeout(toastTimer); toastTimer = setTimeout(() => H$.toast && (H$.toast.innerHTML = ''), ms);
 }
-function banner(s) {
-  const r = ribbon(ui, s, 'banner');
-  if (reduced) return setTimeout(() => r.remove(), 2100);
-  r.classList.add('in'); setTimeout(() => r.style.opacity = 0, 1800); setTimeout(() => r.remove(), 2100);
+function banner(s, sub, kind = 'wave', portrait, ms = 1800) { // painted ribbon + subtitle; one at a time
+  ui.querySelectorAll('.banner').forEach(e => e.remove());
+  const r = ribbon(ui, s, 'banner b-' + kind);
+  if (portrait && IMG[portrait]) r.prepend(img(r, portrait, 'nopt bport'));
+  if (sub) h('div', r, 'bsub out', sub);
+  if (!reduced) r.classList.add('in');
+  setTimeout(() => r.style.opacity = 0, ms); setTimeout(() => r.remove(), ms + 300);
 }
 function setPaused(v) {
   if (!g || g.over) return;
@@ -702,7 +721,7 @@ function refreshHUD(realDt) {
   refreshChip();
   setC(H$.bar, 'bbar' + (g.phase === 'wave' ? ' inwave' : '') + (g.radial != null ? ' picking' : ''));
   if (L.pan !== L.panTo) { const d = L.panTo - L.pan; L.pan = Math.abs(d) < 1 ? L.panTo : L.pan + d * Math.min(1, realDt / .08); }
-  setT(H$.start, g.phase === 'build' ? (L.mode === 'rail' ? `Start ${Math.ceil(g.countdown)}` : `Start wave (${Math.ceil(g.countdown)})`) : 'Start wave'); if (H$.start.disabled !== (g.phase !== 'build')) H$.start.disabled = g.phase !== 'build';
+  { const cd = Math.ceil(g.countdown), bn = Math.floor(g.countdown); setT(H$.start, g.phase === 'build' ? (L.mode === 'rail' ? `Go ${cd}s +${bn}g` : `Start wave ${cd}s · +${bn}g`) : (isBoss(g.wave) ? 'Boss wave!' : 'Wave on')); setC(H$.start, 'b display start' + (g.phase === 'build' && cd <= 3 ? ' soon' : '')); } if (H$.start.disabled !== (g.phase !== 'build')) H$.start.disabled = g.phase !== 'build';
   const nw = g.wave + 1;
   if (g.phase === 'build') setT(H$.next, nw <= WAVES.length ? 'Next: ' + WAVES[nw - 1][0].map(([t, n]) => plural(n, EN[t].name)).join(', ') : ''); else setT(H$.next, `${g.remaining} left`);
   refreshUpgrade();
@@ -730,7 +749,8 @@ function whiteOf(fr) { // white silhouette of one frame, cached (procedural hit 
   if (!c) { c = document.createElement('canvas'); c.width = fr.sw; c.height = fr.sh; const x = c.getContext('2d'); x.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, 0, 0, fr.sw, fr.sh); x.globalCompositeOperation = 'source-atop'; x.fillStyle = '#fff'; x.fillRect(0, 0, fr.sw, fr.sh); flashCache.set(key, c); }
   return c;
 }
-function at(x, y, s = 1) { const [sx, sy] = w2s(x, y), d = L.dpr * L.k * s; ctx.setTransform(d, 0, 0, d, L.dpr * sx, L.dpr * sy); }
+let shk = [0, 0];
+function at(x, y, s = 1) { const [sx, sy] = w2s(x, y), d = L.dpr * L.k * s; ctx.setTransform(d, 0, 0, d, L.dpr * (sx + shk[0]), L.dpr * (sy + shk[1])); }
 function drawFrame(fr, sx = 1, sy = 1, alpha = 1, flash = 0) {
   if (!fr) return;
   ctx.globalAlpha = alpha; ctx.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, -fr.ax * sx, -fr.ay * sy, fr.sw * sx, fr.sh * sy);
@@ -748,6 +768,7 @@ let cvFocused = false;
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height);
   if (screen !== 'game' || !g) return;
+  shk = shakeT > 0 ? [(Math.random() - .5) * shakeA * shakeT / .35, (Math.random() - .5) * shakeA * shakeT / .35] : [0, 0]; if (shakeT <= 0) shakeA = 0;
   drawTerrain(performance.now() / 1000);
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   const items = [];
@@ -755,7 +776,8 @@ function render() {
     const [x, y] = spotC(t.spot), id = `tower.${t.type}.${t.lv}`, atk = t.atk > 0 ? t.atk / (t.atkD || .16) : 0;
     const aa = atk > 0 && sprite(id, 'attack'), fr = aa ? frameOf(aa, (t.atkD || .16) - t.atk, 'right') : frameOf(sprite(id, 'idle') || stillDef(`tower_${t.type}_l${t.lv}`), g.stats.time, 'right');
     items.push([w2s(x, y + 56)[1], () => { // recoil fallback when there is no attack sheet: dip + squash
-      at(x, y + 56 + (aa ? 0 : 5 * atk)); drawFrame(fr, aa ? 1 : 1 + .04 * atk, aa ? 1 : 1 - .07 * atk);
+      const pp = t.pop > 0 && !reduced ? Math.sin((1 - t.pop / .35) * Math.PI) * .18 : 0;
+      at(x, y + 56 + (aa ? 0 : 5 * atk)); drawFrame(fr, (aa ? 1 : 1 + .04 * atk) * (1 + pp), (aa ? 1 : 1 - .07 * atk) * (1 + pp));
       if (!aa && atk > .5 && !reduced) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = SPARK[t.type]; ctx.globalAlpha = (atk - .5) * 1.2; ctx.beginPath(); ctx.arc(0, -fr.ay + 34, 18, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
     }]);
   }
@@ -786,7 +808,13 @@ function render() {
     const len = Math.hypot(x2 - x1, y2 - y1); ctx.globalAlpha = Math.min(1, r.t / .06); ctx.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, 0, -fr.ay, len, fr.sh); ctx.globalAlpha = 1;
   }
   for (const f of g.fx) { const a = ANIM[f.k] || { sheet: f.k, frameWidth: 128, frameHeight: 128, frames: 4, fps: 12, anchor: [.5, .5], loop: false }; at(f.x, f.y); drawFrame(frameOf(a, reduced ? .17 : f.t, 'right')); }
-  if (g.parts.length) { ctx.globalCompositeOperation = 'lighter'; for (const q of g.parts) { at(q.x, q.y); ctx.globalAlpha = 1 - q.t / q.life; ctx.fillStyle = q.col; ctx.fillRect(-4, -4, 8, 8); } ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+  for (const q of g.parts) { const k = q.kind || 'sq', a = 1 - q.t / q.life; at(q.x, q.y); ctx.globalAlpha = a;
+    if (k === 'sq') { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = q.col; const z = q.sz || 8; ctx.fillRect(-z / 2, -z / 2, z, z); ctx.globalCompositeOperation = 'source-over'; }
+    else if (k === 'dust') { ctx.globalAlpha = a * .7; ctx.fillStyle = q.col; ctx.beginPath(); ctx.arc(0, 0, q.sz * (1 + q.t / q.life), 0, 6.283); ctx.fill(); }
+    else if (k === 'coin') { ctx.fillStyle = '#7a4a10'; ctx.beginPath(); ctx.ellipse(0, 0, q.sz, q.sz * Math.abs(Math.cos(q.t * 14)) + 2, 0, 0, 6.283); ctx.fill(); ctx.fillStyle = q.col; ctx.beginPath(); ctx.ellipse(0, -1, q.sz - 2, (q.sz - 2) * Math.abs(Math.cos(q.t * 14)) + 1, 0, 0, 6.283); ctx.fill(); }
+    else if (k === 'ring') { ctx.strokeStyle = q.col; ctx.lineWidth = 8 * a; ctx.beginPath(); ctx.arc(0, 0, q.sz * (.3 + .7 * (1 - a * a)), 0, 6.283); ctx.stroke(); }
+    else if (k === 'text') { ctx.font = `${Math.round(20 / L.k)}px "${DISPLAY.family}", sans-serif`; ctx.textAlign = 'center'; ctx.lineWidth = 7 / L.k; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1e120a'; ctx.globalAlpha = Math.min(1, a * 2); ctx.strokeText(q.s, 0, 0); ctx.fillStyle = q.col; ctx.fillText(q.s, 0, 0); }
+  } ctx.globalAlpha = 1;
   for (const e of g.enemies) {
     if (e.hp >= e.max) continue;
     const fr = enemyFrame(e.type, 'walk', 0, e.face), hh = fr ? fr.ay : EN[e.type].h;
@@ -808,7 +836,7 @@ function loop(now) {
   const real = Math.min(.1, (now - lastFrame) / 1000); lastFrame = now;
   if (screen === 'game' && g) {
     if (!g.paused && !g.over) { let dt = real * g.speed * FF; while (dt > 0 && !g.over) { const s = Math.min(dt, 1 / 60); step(s); dt -= s; } }
-    if (H$.gold) refreshHUD(real);
+    if (H$.gold) refreshHUD(real); if (shakeT > 0) shakeT -= real;
   }
   render(); requestAnimationFrame(loop);
 }
@@ -829,7 +857,7 @@ function activateSpot(i) {
 cv.addEventListener('pointermove', ev => { if (g && ev.pointerType === 'mouse') g.hover = spotAtXY(ev.clientX, ev.clientY); });
 cv.addEventListener('pointerleave', () => { if (g) g.hover = -1; });
 longPress(cv, (x, y) => { if (!g) return; const i = spotAtXY(x, y); if (i < 0) return; const t = g.towers[i]; return t ? `${TW[t.type].name} Lv ${t.lv} — Damage ${t.st[1]} · Rate ${t.st[2]}/s · Range ${t.st[3]} · Sell ${Math.floor(t.invested * .7)}` : 'Empty build spot — tap to build'; });
-cv.addEventListener('click', ev => { if (screen === 'game' && g && !modal) activateSpot(spotAtXY(ev.clientX, ev.clientY)); });
+cv.addEventListener('click', ev => { if (screen === 'game' && g && !modal) { const i = spotAtXY(ev.clientX, ev.clientY); if (i >= 0) { play('ui_click'); ring(...spotC(i), '#ffe08a', 64, .25); } else ring(...s2w(ev.clientX, ev.clientY), 'rgba(255,255,255,.7)', 30, .2); activateSpot(i); } });
 cv.addEventListener('focus', () => { cvFocused = true; if (g && g.focus < 0) g.focus = SPOT_ORDER[0]; });
 cv.addEventListener('blur', () => { cvFocused = false; });
 addEventListener('contextmenu', ev => { if (screen === 'game') { ev.preventDefault(); if (g && !modal) { closePanels(); g.slot = null; } } });

@@ -260,3 +260,34 @@ button.slot.off .cost{color:#e8dcc8;text-decoration:line-through 2px}
 /* TD-10b: portrait slots evenly spaced and centred in the panel, same column box for every slot */
 #ui.m-sheet .bbar{justify-content:center}
 #ui .bbar .barslot .price,#ui .bbar .barslot .tname{align-self:stretch;text-align:center}
+
+/* ---------- TD-11 polish: one frame family (hud2 panel_top / panel_bottom), 16px floor, banners, start-wave states ---------- */
+#ui:not(.m-desktop) .hud{left:0;right:0;top:0;padding:calc(2px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right)) 2px calc(6px + env(safe-area-inset-left));min-height:56px;box-shadow:0 10px 18px -6px rgba(20,10,0,.45)}
+#ui.m-rail .hud{right:calc(150px + env(safe-area-inset-right))}
+#ui:not(.m-desktop) .hud .num{font-size:20px;color:var(--text)}
+#ui .hud .num.low{color:#ff8a70}
+.small,.detail,.utext .small,.tip,.tipb,.next,.sel-rail .acts button,#ui.m-rail .bbar .start{font-size:16px}
+#ui .bbar .start{color:#fff4d6}
+#ui .bbar .start.soon:not(:disabled){animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{to{filter:drop-shadow(0 0 8px #ffe08a) brightness(1.15)}}
+#ui .bbar .start:disabled{color:#d9ccb4}
+.toast{font-size:16px;color:#fff4d6}
+/* banners: ribbon + subtitle; boss = red glow + portrait, clear = green subtitle */
+.banner{top:30%;z-index:7;display:flex;flex-direction:column;align-items:center;height:auto;pointer-events:none}
+.banner .rib-b,.banner>img.rib-l,.banner>img.rib-r{height:calc(56px*var(--u))}
+.banner{flex-wrap:wrap;flex-direction:row;justify-content:center}
+.banner .rib-t{inset:0 0 auto 0;height:calc(50px*var(--u));font-size:24px}
+.banner .bsub{flex-basis:100%;text-align:center;font-size:18px;color:#fff4d6;margin-top:4px}
+.banner.b-clear .bsub{color:#c8f59a}
+.banner.b-boss{filter:drop-shadow(0 0 14px rgba(255,60,30,.75))}
+.banner.b-boss .rib-t{font-size:28px;color:#ffd6c8}
+.banner.b-boss .bsub{color:#ffb3a0;font-size:18px}
+.banner .bport{position:absolute;left:50%;top:-84px;width:96px;height:96px;transform:translateX(-50%);object-fit:contain;filter:drop-shadow(0 4px 0 rgba(0,0,0,.5))}
+.banner.b-boss.in{animation:bossin .6s cubic-bezier(.2,1.6,.4,1)}
+@keyframes bossin{0%{transform:translateX(-50%) scale(1.8);opacity:0}100%{transform:translateX(-50%) scale(1)}}
+.banner .bsub{flex-basis:auto;margin:4px auto 0;padding:2px 12px;background:rgba(30,18,10,.78);border-radius:12px}
+.banner .rib-t{width:100%}
+#ui.m-rail .hud .wbar{display:none} /* the centred crest sat on top of it; the skull count carries progress in landscape */
+.banner{width:min(520px,92vw)}
+.banner .bsub{position:absolute;top:100%;left:50%;transform:translateX(-50%);white-space:nowrap;margin-top:6px}
+#ui.m-rail .banner{left:calc(50% - 75px)}

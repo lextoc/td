@@ -411,6 +411,7 @@
   "fire_mage": "/assets/sounds/08-arcane-orb.ogg",
   "fire_frost": "/assets/sounds/04-frost-crystal.ogg",
   "fire_tesla": "/assets/sounds/05-tesla-coil.ogg",
+  "boss_intro": "/assets/sounds/10-dragon-fire-cannon.ogg",
   "hit_arrow": "/assets/audio/hit_arrow.ogg",
   "hit_cannon": "/assets/audio/hit_cannon.ogg",
   "hit_magic": "/assets/audio/hit_magic.ogg",
