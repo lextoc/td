@@ -1,5 +1,34 @@
 /* Responsive: the canvas fills the viewport; all UI is a DOM overlay sized in CSS px times --u (UI scale). */
 html,body{touch-action:manipulation;margin:0;height:100%;background:#141019;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+.castle-hit{position:absolute;border:0;background:transparent;cursor:pointer;padding:0;min-width:48px;min-height:48px;z-index:3;color:#ffe7a7;font:inherit}
+.castle-label{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);background:#241b12e8;border:1px solid #b58b48;border-radius:12px;padding:3px 9px;font-size:12px;white-space:nowrap;box-shadow:0 2px 6px #0008}
+.castle-hit:hover,.castle-hit:focus-visible{outline:3px solid #ffe7a7;outline-offset:2px;border-radius:12px}
+.castle-hit[hidden],.kingdom-launch[hidden]{display:none!important}
+#ui .kingdom-launch{position:absolute;z-index:3;font-size:14px;height:48px;min-width:96px}
+.modal.kingdom-modal{z-index:100;display:flex;align-items:center;justify-content:center;padding:12px;padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.kingdom-card{position:relative;display:flex;flex-direction:column;width:min(760px,100%);max-height:100%;min-height:0;background:linear-gradient(145deg,#302a23,#181b23);border:2px solid #b8975a;border-radius:18px;color:#f6ead3;box-shadow:0 16px 80px #000b;overflow:hidden}
+.kingdom-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 22px 12px}
+.kingdom-header h2{margin:4px 0;font-size:30px;line-height:1.15}
+.kingdom-eyebrow{font-size:11px;letter-spacing:.16em;color:#e6be73}
+#ui .kingdom-close{min-width:72px;flex-shrink:0}
+.kingdom-summary{padding:10px 22px;background:#0004;border-block:1px solid #b8975a44;font-size:14px;line-height:1.6;font-variant-numeric:tabular-nums}
+.kingdom-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:12px 16px 0}
+#ui .kingdom-tabs button{border:1px solid #b8975a66;border-image:none;background:#171b24;border-radius:8px;min-width:0;min-height:48px;height:auto;padding:10px 3px;font-size:15px;white-space:normal;text-shadow:none}
+#ui .kingdom-tabs button[aria-pressed=true]{background:#e5bd73;color:#211b15;border-color:#ffe2a4}
+.kingdom-body{padding:14px 20px 20px;overflow-y:auto;overscroll-behavior:contain;min-height:0;touch-action:pan-y!important;scrollbar-color:#b8975a #191b23}
+.kingdom-body *{touch-action:pan-y!important}
+.kingdom-intro{font-size:13px;line-height:1.6;color:#d0c6b5;margin:0 0 14px;font-weight:normal}
+.research-card{position:relative;background:#ffffff07;border:1px solid #b8975a55;border-radius:12px;margin-bottom:12px;padding:16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.research-card h3{font-size:23px;margin:0;padding-right:70px;line-height:1.2}
+.research-card p{margin:0;font-size:14px;line-height:1.5;font-weight:normal}
+.research-rank{position:absolute;right:14px;top:18px;font-size:12px;color:#e6be73}
+.research-effect{color:#f5d58e}.research-current{color:#a9dfaf}.research-drawback{color:#ffb2a5}.research-lock{color:#d9c5a5;font-size:12px!important}
+.research-description{color:#ddd2c1}
+#ui .research-card button{margin-top:4px;height:auto;min-height:48px;white-space:normal;max-width:100%;font-size:15px}
+.kingdom-notice{margin:0;padding:10px 22px 14px;border-top:1px solid #b8975a44;font-size:12px;line-height:1.5;color:#dbceb6;font-weight:normal;flex-shrink:0}
+.kingdom-card button:focus-visible{outline:3px solid #9ce8ff;outline-offset:3px}
+@media(max-width:480px){.modal.kingdom-modal{padding-inline:8px}.kingdom-header{padding:14px}.kingdom-header h2{font-size:25px}.kingdom-summary{padding:8px 14px;font-size:12px}.kingdom-tabs{padding:10px 10px 0;gap:4px}#ui .kingdom-tabs button{font-size:13px}.kingdom-body{padding:12px}.research-card{padding:14px}.research-card h3{font-size:21px}.kingdom-notice{padding:8px 14px}}
+@media(max-height:480px){.kingdom-header{padding:8px 16px}.kingdom-header h2{font-size:23px}.kingdom-eyebrow{display:none}.kingdom-summary{padding:4px 16px}.kingdom-tabs{padding-top:6px}.kingdom-notice{padding:6px 16px}}
 body{position:fixed;inset:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
 #stage{position:absolute;inset:0;font-weight:bold;color:var(--text);font-size:calc(16px*var(--u,1));user-select:none;-webkit-user-select:none}
 #cv{position:absolute;left:0;top:0;outline:none;touch-action:none;display:block}

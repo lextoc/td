@@ -42,3 +42,6 @@ The td-pack-3 sheets come from `/workspace/game-art/td-pack-3/assets.json` and a
 ## Audio
 `public/assets/audio`: 21 SFX and music files from td-pack-2 (both .ogg and .mp3). The game plays the .ogg files, and the music loops.
 `public/assets/sounds`: tower fire SFX 01–10 from td-sounds.
+
+## Kingdom research
+Tap the castle or press **K** for the Royal Council. Spend gold on 27 research ranks across Warfare, Treasury and Defense, emergency repairs, and one permanent doctrine per run. The game pauses while you choose. Maps without a castle have a Castle button. See [KINGDOM.md](KINGDOM.md) for costs, unlocks, effects and strategy. Run `npm run test:kingdom` for the research and engine checks.

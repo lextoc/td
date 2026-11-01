@@ -23,6 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run test:kingdom
       - run: npm run build -- --base=/td/
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

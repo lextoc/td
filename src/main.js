@@ -2,6 +2,7 @@ import manifest from './manifest.json';
 import './style.css';
 import { genMaps } from './mapgen.js';
 import { findCastle } from './scenery.js';
+import { RESEARCH, DOCTRINES, DOCTRINE_COST, REPAIR_COST, newKingdom, rankOf, totalRanks, modifiers, towerStats, researchOffer, buyResearch, doctrineOffer, chooseDoctrine, killReward, waveReward, sellValue, absorbLeak, buyRepair } from './kingdom.js';
 
 const M = JSON.parse(JSON.stringify(manifest), (_key, value) =>
   typeof value === 'string' && value.startsWith('assets/') ? import.meta.env.BASE_URL + value : value);
@@ -193,7 +194,7 @@ const spotC = i => [SPOTS[i][0] * TS + 64, SPOTS[i][1] * TS + 64];
 // ---------- terrain (td-terrain kit, rules data-driven from manifest.terrain + the map's "terrain" block) ----------
 // Layers (README-td-terrain.md): grass -> grass overlays -> path autotile -> [water, animated per frame] -> decals/props (Y-sorted).
 // Static parts are pre-rendered on layout into groundLayer / propLayer; only the water cells are redrawn each frame.
-let groundLayer = null, propLayer = null, MAP_EXTRA = 0, WATER = new Set(), waterDraw = [], TB = null;
+let groundLayer = null, propLayer = null, MAP_EXTRA = 0, WATER = new Set(), waterDraw = [], TB = null, castleSite = null;
 const hash3 = (x, y, s) => { let h = (x * 374761393 + y * 668265263 + s * 2246822519) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0); };
 const rng = s => () => ((s = Math.imul(s ^ (s >>> 15), 1 | s) + 0x6D2B79F5 | 0), (((s ^ (s >>> 7)) >>> 0) % 1e6) / 1e6);
 function roadCell(c, r) { // path, plus the road running off-map past spawn/exit (off-map neighbours of spawn/exit count as path)
@@ -248,6 +249,7 @@ function buildMapLayer() {
     left: (L.play.x - L.ox) / (k * TS), top: (L.play.y - L.oy) / (k * TS),
     right: (L.play.x + L.play.w - L.ox) / (k * TS), bottom: (L.play.y + L.play.h - L.oy) / (k * TS)
   }) : null;
+  castleSite = castle;
   if (castle) {
     P.push(['castle', castle.c * TS + castleProp.anchor[0], castle.r * TS + castleProp.anchor[1]]);
     for (let r = castle.r - 1; r <= castle.r + castle.height; r++) for (let c = castle.c - 1; c <= castle.c + castle.width; c++) fixed.add(c + ',' + r);
@@ -353,6 +355,7 @@ function newGame() {
     queue: [], spawnT: 0, interval: 1, enemies: [], towers: {}, projs: [], fx: [], arcs: [], dying: [], parts: [],
     speed: 1, paused: false, over: false, stats: { kills: 0, gold: 0, time: 0 }, slot: null, radial: null, sel: null,
     focus: -1, hover: -1, undo: null, total: 0, remaining: 0, shownGold: 250, heartFlash: 0,
+    kingdom: newKingdom(),
   };
   g.shownGold = g.gold;
 }
@@ -360,10 +363,11 @@ function addGold(n) { g.gold += n; g.stats.gold += n; }
 const BREATHER = 12, BOSS_BREATHER = 18; // seconds between waves; the finale gets a longer build-up
 const isBoss = w => WAVES[w - 1]?.[0].some(([t]) => EN[t].boss);
 function startWave() {
-  if (!g || g.phase !== 'build' || g.over || g.wave >= WAVES.length) return;
+  if (!g || g.paused || g.phase !== 'build' || g.over || g.wave >= WAVES.length) return;
   const bonus = Math.floor(g.countdown);
   if (bonus > 0) { addGold(bonus); play('coin'); toast(`Early start! +${bonus} gold`); }
   g.wave++; g.phase = 'wave';
+  g.kingdom.wards = modifiers(g.kingdom).wards;
   const [groups, iv] = WAVES[g.wave - 1];
   g.queue = groups.flatMap(([t, n]) => Array(n).fill(t)); g.interval = iv; g.spawnT = 0;
   g.total = g.remaining = g.queue.length;
@@ -380,7 +384,7 @@ function damage(e, n) {
   e.hp -= n; e.flash = .12;
   if (e.hp <= 0) {
     play('enemy_death_' + (1 + Math.floor(Math.random() * 3)));
-    e.dead = true; g.remaining--; g.stats.kills++; addGold(e.d.gold); g.dying.push({ type: e.type, x: e.x, y: e.y, face: e.face, t: 0 });
+    e.dead = true; g.remaining--; g.stats.kills++; addGold(killReward(e.d.gold, g.kingdom)); g.dying.push({ type: e.type, x: e.x, y: e.y, face: e.face, t: 0 });
     burst(e.x, e.y - 30, { n: e.d.boss ? 40 : 10, col: '#e8d9b8', sz: e.d.boss ? 14 : 9, v: e.d.boss ? 320 : 180, life: .5, gr: 200, kind: 'dust' }); coinFx(e.x, e.y - 40, e.d.boss); if (e.d.boss) shake(14);
     if (!sprite('enemy.' + e.type, 'death')) addFx(M.sprites?.['enemy.' + e.type]?.deathFx || 'fx_death_puff', e.x, e.y); 
   }
@@ -406,7 +410,7 @@ function fire(t) {
   const wait = AA ? 1 / AA.fps : 0; // projectile leaves on attack frame 1
   if (t.type === 'tesla') {
     let dmg = t.st[1], cur = tgt, from = [cx, cy - 70]; const hit = new Set();
-    for (let i = 0; i < D.chain[t.lv - 1] && cur; i++) {
+    for (let i = 0; i < D.chain[t.lv - 1] + modifiers(g.kingdom).chain && cur; i++) {
       hit.add(cur); g.arcs.push({ a: from, b: [cur.x, cur.y], t: .12 }); damage(cur, dmg); addFx(D.fx, cur.x, cur.y); sparks(cur.x, cur.y, SPARK.tesla, 4); if (i === 0) play(D.hit);
       from = [cur.x, cur.y]; dmg *= 0.8;
       const c = cur; cur = g.enemies.filter(e => !e.dead && !hit.has(e) && Math.hypot(e.x - c.x, e.y - c.y) <= 1.5 * TS).sort((a, b) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b.x - c.x, b.y - c.y))[0];
@@ -416,10 +420,10 @@ function fire(t) {
 }
 function hitProj(p) {
   const t = p.t, D = TW[t.type];
-  if (D.splash) { const r = D.splash[t.lv - 1] * TS; for (const e of g.enemies) if (Math.hypot(e.x - p.x, e.y - p.y) <= r) damage(e, t.st[1]); }
+  if (D.splash) { const r = D.splash[t.lv - 1] * TS * modifiers(g.kingdom).splash; for (const e of g.enemies) if (Math.hypot(e.x - p.x, e.y - p.y) <= r) damage(e, t.st[1]); }
   else if (!p.tgt.dead) {
     p.tgt.pend -= p.dmg; damage(p.tgt, t.st[1]);
-    if (D.slow) { const [pct, dur] = D.slow[t.lv - 1], e = p.tgt; if (e.slowT <= 0 || pct >= e.slow) { e.slow = pct; e.slowT = dur; } }
+    if (D.slow) { const [pct, dur] = D.slow[t.lv - 1], e = p.tgt; if (e.slowT <= 0 || pct >= e.slow) { e.slow = pct; e.slowT = dur * modifiers(g.kingdom).slowDuration; } }
   }
   if (D.fx) addFx(D.fx, p.x, p.y); sparks(p.x, p.y, SPARK[t.type], D.fx ? 4 : 8);
   play(D.hit);
@@ -437,7 +441,13 @@ function step(dt) {
     const ox = e.x, oy = e.y; [e.x, e.y] = pathPos(e.dist);
     const fx = e.x - ox, fy = e.y - oy; if (Math.abs(fx) + Math.abs(fy) > .01) e.face = Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 'left' : 'right') : (fy < 0 ? 'up' : 'down');
     e.walkT += dt * e.d.sp * (1 - e.slow); if (e.flash > 0) e.flash -= dt;
-    if (e.dist >= PLEN) { e.dead = e.leaked = true; g.remaining--; (g.leaks ??= {})[e.type] = (g.leaks[e.type] || 0) + 1; g.lives = Math.max(0, g.lives - e.d.lives); g.heartFlash = .2; play('life_lost'); }
+    if (e.dist >= PLEN) {
+      e.dead = e.leaked = true; g.remaining--; (g.leaks ??= {})[e.type] = (g.leaks[e.type] || 0) + 1;
+      const leak = absorbLeak(g.kingdom, e.d.lives); g.kingdom = leak.state;
+      g.lives = Math.max(0, g.lives - leak.lost);
+      if (leak.absorbed) floatText(e.x, e.y - 70, `Ward saved ${leak.absorbed}`, '#9ce8ff');
+      if (leak.lost) { g.heartFlash = .2; play('life_lost'); }
+    }
   }
   for (const t of Object.values(g.towers)) { if (t.pop > 0) t.pop -= dt; if (t.atk > 0) t.atk -= dt; t.cd -= dt; if (t.cd <= 0 && fire(t)) t.cd = 1 / t.st[2]; }
   const sp = 8 * TS * dt;
@@ -455,7 +465,7 @@ function step(dt) {
   for (const a of g.arcs) a.t -= dt; g.arcs = g.arcs.filter(a => a.t > 0);
   if (g.lives <= 0) return endGame(false);
   if (g.phase === 'wave' && !g.queue.length && !g.enemies.length) {
-    const b = 20 + 5 * g.wave; addGold(b); play('coin');
+    const b = waveReward(g.wave, g.kingdom); addGold(b); play('coin');
     if (g.wave >= WAVES.length) return endGame(true);
     banner(`Wave ${g.wave} cleared`, `+${b} gold · ${isBoss(g.wave + 1) ? 'the Troll comes next!' : 'build up'}`, 'clear');
     g.phase = 'build'; g.countdown = isBoss(g.wave + 1) ? BOSS_BREATHER : BREATHER;
@@ -466,23 +476,25 @@ function step(dt) {
 function build(spot, type) {
   if (g.towers[spot] || g.over) return false;
   const c = TW[type].lv[0][0]; if (g.gold < c) { play('ui_error'); return false; }
-  play('build'); g.gold -= c; g.towers[spot] = { spot, type, lv: 1, st: TW[type].lv[0], cd: 0, invested: c, pop: .35 };
+  play('build'); g.gold -= c; g.towers[spot] = { spot, type, lv: 1, st: towerStats(TW[type].lv[0], g.kingdom), cd: 0, invested: c, pop: .35 };
   { const [x, y] = spotC(spot); addFx('fx_build_dust', x, y + 40); ring(x, y + 30, '#ffe08a', 80); floatText(x, y - 80, `-${c}`, '#ffb3a0'); }
   closePanels(); return true;
 }
 function upgrade(spot) {
   const t = g.towers[spot]; if (!t || t.lv >= 3) return false;
   const c = TW[t.type].lv[t.lv][0]; if (g.gold < c) { play('ui_error'); return false; }
-  play('upgrade'); g.gold -= c; t.invested += c; t.lv++; t.pop = .35; { const [x, y] = spotC(spot); burst(x, y - 40, { n: 16, col: '#ffe08a', sz: 7, v: 220, life: .6, gr: 200, up: true }); ring(x, y, '#9fe870', 90); floatText(x, y - 100, `Lv ${t.lv}!`, '#9fe870'); } t.st = TW[t.type].lv[t.lv - 1]; if (g.sel === spot) openSel(spot, true); buzz(); return true;
+  play('upgrade'); g.gold -= c; t.invested += c; t.lv++; t.pop = .35; { const [x, y] = spotC(spot); burst(x, y - 40, { n: 16, col: '#ffe08a', sz: 7, v: 220, life: .6, gr: 200, up: true }); ring(x, y, '#9fe870', 90); floatText(x, y - 100, `Lv ${t.lv}!`, '#9fe870'); } t.st = towerStats(TW[t.type].lv[t.lv - 1], g.kingdom); if (g.sel === spot) openSel(spot, true); buzz(); return true;
 }
 function sell(spot) {
   const t = g.towers[spot]; if (!t) return false;
-  const r = Math.floor(t.invested * .7); g.gold += r; play('sell'); play('coin'); delete g.towers[spot];
+  const r = sellValue(t.invested, g.kingdom); g.gold += r; play('sell'); play('coin'); delete g.towers[spot];
   { const [x, y] = spotC(spot); coinFx(x, y - 30); addFx('fx_build_dust', x, y + 40, .8); floatText(x, y - 80, `+${r}`, '#ffd34d'); }
   g.undo = { t, r, until: performance.now() + 3000 }; closePanels(); toast(`Sold for ${r}`, 3000, null, ['Undo', undoSell]); buzz(); return true;
 }
 function undoSell() {
   const u = g.undo; if (!u || performance.now() > u.until || g.towers[u.t.spot]) return;
+  if (g.gold < u.r) { play('ui_error'); toast('Not enough gold to undo this sale'); return; }
+  u.t.st = towerStats(TW[u.t.type].lv[u.t.lv - 1], g.kingdom);
   g.gold -= u.r; g.towers[u.t.spot] = u.t; g.undo = null; toast('Sale undone');
 }
 
@@ -525,7 +537,8 @@ function howTo() {
   [['ui/slot/slot_normal.png', 'Tap a spot', 'Tap an empty build spot on the map.'],
    ['ui/hud2/icons/icon_tower_archer.png', 'Pick a tower', 'Tap a tower in the bottom bar. Tap it again (or its price) to build.'],
    ['ui/hud2/button_start_wave_normal.png', 'Start the wave', 'Tap Start wave when you are ready.'],
-   ['ui/icon/icon_heart_96.png', 'Protect your lives', 'Each enemy that gets through costs a life. Keep them all out!']]
+   ['ui/icon/icon_heart_96.png', 'Protect your lives', 'Each enemy that gets through costs a life. Keep them all out!'],
+   ['terrain/props/castle.png', 'Visit the castle', 'Tap Research on the castle, use the Castle button on maps without one, or press K. Spend gold on kingdom-wide research. The council pauses the game.']]
     .forEach(([src, t, d], i) => { const li = h('li', ol, 'hstep'), im = h('img', li, 'nopt'); im.src = 'assets/' + src; im.alt = ''; const tx = h('div', li); h('b', tx, '', `${i + 1}. ${t}`); h('p', tx, '', d); });
   const ok = btn(h('div', inn, 'row'), 'Got it', () => { modal.remove(); modal = null; prev?.focus(); });
   modal.close = ok.onclick; ok.focus();
@@ -559,6 +572,10 @@ function startGame() {
   H$.sel = h('div', ui, 'selwrap');
   H$.tip = h('div', ui, 'tipb nopt'); H$.tip.hidden = true;
   H$.live = h('div', ui, 'sr'); H$.live.setAttribute('aria-live', 'polite');
+  H$.kingdom = btn(ui, 'Castle · K', openCastle, 'Open castle research (K)', 'kingdom-launch');
+  H$.castleMap = h('button', ui, 'castle-hit'); H$.castleMap.setAttribute('aria-label', 'Castle: open kingdom research');
+  H$.castleMap.onclick = () => { play('ui_click'); openCastle(); };
+  h('span', H$.castleMap, 'castle-label', 'Research');
   layout(); cv.focus({ preventScroll: true });
 }
 function slotBtn(parent, k, fn, cls = '') {
@@ -608,9 +625,9 @@ function openSel(spot, keep) {
   const box = panel(H$.sel, 'selp sel-float upg'), p = box.parentElement, D = TW[t.type];
   h('div', box, 'stitle out display', `${D.name} Lv ${t.lv}`);
   const tx = h('div', box, 'utext'); h('div', tx, 'small', `Dmg ${t.st[1]} · ${t.st[2]}/s · Rng ${t.st[3]}`);
-  if (t.lv < 3) { const n = D.lv[t.lv], nl = h('div', tx, 'small'); nl.innerHTML = `Next: <span style="color:${T.good}">Dmg ${n[1]}</span> · ${n[2]}/s · <span style="color:${T.good}">Rng ${n[3]}</span>`; }
+  if (t.lv < 3) { const n = towerStats(D.lv[t.lv], g.kingdom), nl = h('div', tx, 'small'); nl.innerHTML = `Next: <span style="color:${T.good}">Dmg ${n[1]}</span> · ${n[2]}/s · <span style="color:${T.good}">Rng ${n[3]}</span>`; }
   const acts = h('div', box, 'acts');
-  H$.sell = btn(acts, `Sell ${Math.floor(t.invested * .7)}`, () => sell(spot), null, 'sellb');
+  H$.sell = btn(acts, `Sell ${sellValue(t.invested, g.kingdom)}`, () => sell(spot), null, 'sellb');
   H$.up = btn(acts, '', () => upgrade(spot), null, 'confirm');
   H$.close = btn(acts, 'Close', () => { closePanels(); cv.focus(); }, 'Close', 'cancel');
   refreshUpgrade();
@@ -681,6 +698,118 @@ function banner(s, sub, kind = 'wave', portrait, ms = 1800) { // painted ribbon 
   if (!reduced) r.classList.add('in');
   setTimeout(() => r.style.opacity = 0, ms); setTimeout(() => r.remove(), ms + 300);
 }
+const clearedWaves = () => g.phase === 'wave' ? Math.max(0, g.wave - 1) : g.wave;
+function applyKingdomPurchase(result) {
+  if (!result || g.over || !modal?.kingdom) return false;
+  g.kingdom = result.state; g.gold = result.gold;
+  g.lives = result.lives ?? Math.min(modifiers(g.kingdom).maxLives, g.lives + (result.heal || 0));
+  for (const tower of Object.values(g.towers)) tower.st = towerStats(TW[tower.type].lv[tower.lv - 1], g.kingdom);
+  play('upgrade'); buzz(); return true;
+}
+function updateCastleAccess() {
+  if (!H$.kingdom) return;
+  const blocked = g.over || !!modal;
+  H$.kingdom.disabled = blocked;
+  H$.kingdom.style.top = `${(L.hudR ? L.hudR.y + L.hudR.h : L.safe.t) + 8}px`;
+  H$.kingdom.style.left = `${L.play.x + 6}px`;
+  H$.kingdom.hidden = !!castleSite || g.over;
+  const b = H$.castleMap; b.hidden = !castleSite || g.over; b.disabled = blocked;
+  const m = modifiers(g.kingdom);
+  setT(b.firstElementChild, m.wards ? `Research · ${g.kingdom.wards}/${m.wards} wards` : 'Research');
+  b.title = `Royal Council: ${totalRanks(g.kingdom)} research ranks, ${g.gold} gold. Press K to open.`;
+  H$.kingdom.title = b.title;
+  if (castleSite) {
+    const [x, y] = w2s(castleSite.c * TS, castleSite.r * TS);
+    Object.assign(b.style, { left: `${x}px`, top: `${y}px`, width: `${384 * L.k}px`, height: `${302 * L.k}px` });
+  }
+}
+function openCastle() {
+  if (!g || g.over || modal) return;
+  closePanels();
+  const previous = document.activeElement, wasPaused = g.paused;
+  g.paused = true;
+  const dialog = modal = mkModal(); dialog.classList.add('kingdom-modal'); dialog.kingdom = true;
+  dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-labelledby', 'kingdom-title');
+  const card = h('section', dialog, 'kingdom-card');
+  const header = h('header', card, 'kingdom-header');
+  const heading = h('div', header); h('div', heading, 'kingdom-eyebrow', 'KINGDOM RESEARCH');
+  h('h2', heading, 'display', 'The Royal Council').id = 'kingdom-title';
+  const close = btn(header, 'Close', () => dialog.close(), 'Close castle research', 'kingdom-close');
+  const summary = h('div', card, 'kingdom-summary');
+  const body = h('div', card, 'kingdom-body');
+  const notice = h('p', card, 'kingdom-notice'); notice.setAttribute('role', 'status');
+  let tab = 'Warfare', pendingDoctrine = null;
+  const tabs = h('div', card, 'kingdom-tabs'); tabs.setAttribute('aria-label', 'Research categories'); card.insertBefore(tabs, body);
+  const tabButtons = ['Warfare', 'Treasury', 'Defense', 'Doctrine'].map(name => {
+    const b = btn(tabs, name, () => { tab = name; pendingDoctrine = null; draw(); }, name);
+    return [name, b];
+  });
+  const announce = text => { setT(notice, text); live(text); };
+  const purchase = (result, text, id) => {
+    if (!applyKingdomPurchase(result)) { play('ui_error'); announce('Purchase unavailable. Check your gold and unlock requirements.'); return; }
+    announce(text); draw(id);
+  };
+  const draw = focusId => {
+    const scroll = body.scrollTop; body.replaceChildren();
+    const state = g.kingdom, m = modifiers(state), cleared = clearedWaves();
+    setT(summary, `${g.gold} gold · ${g.lives}/${m.maxLives} lives · ${state.wards}/${m.wards} wards · ${totalRanks(state)}/27 ranks`);
+    for (const [name, button] of tabButtons) button.setAttribute('aria-pressed', name === tab ? 'true' : 'false');
+    h('p', body, 'kingdom-intro', 'Game paused. Research lasts for this run and affects existing and future towers. Rank II unlocks after wave 3; rank III after wave 6.');
+    if (tab === 'Doctrine') {
+      h('p', body, 'kingdom-intro', `Choose ONE permanent doctrine for ${DOCTRINE_COST} gold after clearing wave 5 and installing 6 research ranks. Cannot be changed or refunded this run.`);
+      const offer = doctrineOffer(state, cleared, g.gold);
+      for (const doctrine of DOCTRINES) {
+        const tile = h('article', body, 'research-card');
+        h('h3', tile, 'display', doctrine.name + (state.doctrine === doctrine.id ? ' · Adopted' : ''));
+        h('p', tile, 'research-effect', doctrine.benefit); h('p', tile, 'research-drawback', doctrine.drawback);
+        h('p', tile, 'research-description', doctrine.description);
+        if (pendingDoctrine === doctrine.id && !state.doctrine) {
+          h('p', tile, 'research-description', 'This choice is permanent for this run.');
+          const confirm = btn(tile, `Adopt · ${DOCTRINE_COST} gold`, () => purchase(chooseDoctrine(g.kingdom, doctrine.id, clearedWaves(), g.gold), `${doctrine.name} doctrine adopted`, 'doctrine-' + doctrine.id));
+          confirm.disabled = !offer.ok; confirm.dataset.research = 'doctrine-' + doctrine.id;
+          btn(tile, 'Cancel', () => { pendingDoctrine = null; draw('doctrine-' + doctrine.id); });
+        } else {
+          const b = btn(tile, state.doctrine === doctrine.id ? 'Adopted' : `Choose · ${DOCTRINE_COST} gold`, () => { pendingDoctrine = doctrine.id; draw('doctrine-' + doctrine.id); });
+          b.disabled = !offer.ok; b.dataset.research = 'doctrine-' + doctrine.id;
+        }
+        if (!offer.ok && state.doctrine !== doctrine.id) h('p', tile, 'research-lock', offer.reason);
+      }
+    } else {
+      for (const item of RESEARCH.filter(item => item.branch === tab)) {
+        const offer = researchOffer(state, item.id, cleared, g.gold), rank = rankOf(state, item.id);
+        const tile = h('article', body, 'research-card');
+        h('h3', tile, 'display', item.name); h('span', tile, 'research-rank', `Rank ${rank} / 3`);
+        h('p', tile, 'research-description', item.description);
+        if (rank) h('p', tile, 'research-current', `Active: ${item.effect(rank)}`);
+        if (rank < 3) h('p', tile, 'research-effect', `Next: ${item.effect(rank + 1)}`);
+        const b = btn(tile, rank === 3 ? 'Fully researched' : `Install ${['I', 'II', 'III'][rank]} · ${offer.cost} gold`, () => purchase(buyResearch(g.kingdom, item.id, clearedWaves(), g.gold), `${item.name} rank ${rank + 1} installed`, item.id));
+        b.disabled = !offer.ok; b.dataset.research = item.id;
+        if (offer.reason) h('p', tile, 'research-lock', offer.reason);
+      }
+      if (tab === 'Defense') {
+        const tile = h('article', body, 'research-card'); h('h3', tile, 'display', 'Emergency repairs');
+        h('p', tile, 'research-description', 'Restore 3 lives, up to your current maximum. Repeatable; does not add research ranks.');
+        const b = btn(tile, `Repair · ${REPAIR_COST} gold`, () => purchase(buyRepair(g.kingdom, g.lives, g.gold), 'Walls repaired', 'repair'));
+        b.dataset.research = 'repair'; b.disabled = g.gold < REPAIR_COST || g.lives >= m.maxLives;
+        if (b.disabled) h('p', tile, 'research-lock', g.lives >= m.maxLives ? 'Walls are fully repaired' : `Need ${REPAIR_COST - g.gold} more gold`);
+      }
+    }
+    body.scrollTop = scroll;
+    if (focusId) { const target = [...body.querySelectorAll('[data-research]')].find(b => b.dataset.research === focusId && !b.disabled); (target || close).focus({ preventScroll: true }); }
+  };
+  dialog.close = () => {
+    dialog.remove(); if (modal === dialog) modal = null; g.paused = wasPaused;
+    updateCastleAccess(); if (previous?.isConnected && !previous.hidden && !previous.disabled) previous.focus({ preventScroll: true }); else cv.focus({ preventScroll: true });
+  };
+  dialog.addEventListener('keydown', event => {
+    if (event.key !== 'Tab') return;
+    const controls = [...card.querySelectorAll('button:not(:disabled)')];
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
+  draw(); announce('Choose research. The game will resume when you close the council.'); close.focus(); updateCastleAccess();
+}
 function setPaused(v) {
   if (!g || g.over) return;
   g.paused = v; modal?.remove(); modal = null;
@@ -710,9 +839,10 @@ function endGame(win) {
   modal = mkModal(); modal.classList.add('endscr', win ? 'win' : 'lose'); const wrap = h('div', modal, 'tcard'); ribbon(wrap, win ? 'Victory!' : 'Defeat', 'trib'); const inn = panel(wrap, 'mpanel');
   h('div', inn, 'mtext center big2', win ? 'The road holds!' : `The enemy broke through on wave ${g.wave}.`);
   const s = Math.floor(g.stats.time), st = h('div', inn, 'estats');
-  [['icon_wave_96', 'Waves', `${Math.min(g.wave, WAVES.length)} / ${WAVES.length}`], ['icon_heart_96', 'Lives left', `${win ? g.lives : 0} / 20`], ['icon_gold_96', 'Gold earned', g.stats.gold.toLocaleString('en-US')], ['icon_skull_96', 'Kills', `${g.stats.kills}`]]
+  [['icon_wave_96', 'Waves', `${Math.min(g.wave, WAVES.length)} / ${WAVES.length}`], ['icon_heart_96', 'Lives left', `${win ? g.lives : 0} / ${modifiers(g.kingdom).maxLives}`], ['icon_gold_96', 'Gold earned', g.stats.gold.toLocaleString('en-US')], ['icon_skull_96', 'Kills', `${g.stats.kills}`]]
     .forEach(([ic, l, v]) => { const d = h('div', st, 'estat'), im = h('img', d, 'nopt'); im.src = `assets/ui/icon/${ic}.png`; im.alt = ''; h('b', d, '', v); h('span', d, '', l); });
   h('div', inn, 'mtext center etime', `Towers standing: ${Object.keys(g.towers).length} · Time: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
+  h('div', inn, 'mtext center', `Research: ${totalRanks(g.kingdom)}/27 ranks · Council spending: ${g.kingdom.spent} gold${g.kingdom.doctrine ? ' · Doctrine: ' + DOCTRINES.find(d => d.id === g.kingdom.doctrine).name : ''}`);
   const r = h('div', inn, 'row');
   const a = btn(r, 'Play again', () => { modal = null; startGame(); }, 'Play again', 'eplay');
   btn(r, 'Title', () => { modal = null; titleScreen(); });
@@ -725,6 +855,7 @@ function refreshHUD(realDt) {
   const gd = g.gold - g.shownGold;
   g.shownGold = reduced || Math.abs(gd) < 1 ? g.gold : g.shownGold + gd * Math.min(1, realDt / 0.1);
   setT(H$.gold, Math.round(g.shownGold));
+  H$.lives.setAttribute('aria-label', `${g.lives} of ${modifiers(g.kingdom).maxLives} lives`);
   setT(H$.lives, g.lives); setC(H$.lives, 'out display num' + (g.lives < 5 ? ' low' : ''));
   g.heartFlash -= realDt; setC(H$.heart, 'nopt hudico' + (g.heartFlash > 0 ? ' flash' : ''));
   setT(H$.left, g.phase === 'wave' ? g.remaining : 0);
@@ -745,6 +876,7 @@ function refreshHUD(realDt) {
   const nw = g.wave + 1;
   if (g.phase === 'build') setT(H$.next, nw <= WAVES.length ? 'Next: ' + WAVES[nw - 1][0].map(([t, n]) => plural(n, EN[t].name)).join(', ') : ''); else setT(H$.next, `${g.remaining} left`);
   refreshUpgrade();
+  updateCastleAccess();
 }
 
 // ---------- animation system (data-driven: manifest.anims + manifest.sprites) ----------
@@ -847,7 +979,7 @@ function render() {
   if (g.radial != null) { at(...spotC(g.radial)); ctx.drawImage(IMG.place_valid, -64, -64, TS, TS); }
   if (g.slot && g.radial == null && L.mode === 'desktop') SPOTS.forEach((_, i) => { at(...spotC(i)); ctx.drawImage(g.towers[i] ? IMG.place_invalid : IMG.place_valid, -64, -64, TS, TS); });
   if (g.ghost && !g.towers[g.ghost.spot]) { const [x, y] = spotC(g.ghost.spot), fr = frameOf(sprite(`tower.${g.ghost.type}.1`, 'idle') || stillDef(`tower_${g.ghost.type}_l1`), 0, 'right'); at(x, y + 56); ctx.globalCompositeOperation = 'source-over'; drawFrame(fr, 1, 1, .5); }
-  const rangeOf = i => { const t = g.towers[i]; if (t) return t.st[3]; if (i === g.radial && g.ghost) return TW[g.ghost.type].lv[0][3]; };
+  const rangeOf = i => { const t = g.towers[i]; if (t) return t.st[3]; if (i === g.radial && g.ghost) return towerStats(TW[g.ghost.type].lv[0], g.kingdom)[3]; };
   for (const i of new Set([g.hover, g.sel, cvFocused ? g.focus : -1, g.radial])) {
     if (i == null || i < 0) continue; const rr = rangeOf(i); if (!rr || (i === g.hover && !g.towers[i] && i !== g.radial)) continue;
     at(...spotC(i)); ctx.drawImage(IMG.range_circle, -rr * TS, -rr * TS, 2 * rr * TS, 2 * rr * TS);
@@ -878,7 +1010,7 @@ function activateSpot(i) {
 }
 cv.addEventListener('pointermove', ev => { if (g && ev.pointerType === 'mouse') g.hover = spotAtXY(ev.clientX, ev.clientY); });
 cv.addEventListener('pointerleave', () => { if (g) g.hover = -1; });
-longPress(cv, (x, y) => { if (!g) return; const i = spotAtXY(x, y); if (i < 0) return; const t = g.towers[i]; return t ? `${TW[t.type].name} Lv ${t.lv} — Damage ${t.st[1]} · Rate ${t.st[2]}/s · Range ${t.st[3]} · Sell ${Math.floor(t.invested * .7)}` : 'Empty build spot — tap to build'; });
+longPress(cv, (x, y) => { if (!g) return; const i = spotAtXY(x, y); if (i < 0) return; const t = g.towers[i]; return t ? `${TW[t.type].name} Lv ${t.lv} — Damage ${t.st[1]} · Rate ${t.st[2]}/s · Range ${t.st[3]} · Sell ${sellValue(t.invested, g.kingdom)}` : 'Empty build spot — tap to build'; });
 cv.addEventListener('click', ev => { if (screen === 'game' && g && !modal) { const i = spotAtXY(ev.clientX, ev.clientY); if (i >= 0) { play('ui_click'); ring(...spotC(i), '#ffe08a', 64, .25); } else ring(...s2w(ev.clientX, ev.clientY), 'rgba(255,255,255,.7)', 30, .2); activateSpot(i); } });
 cv.addEventListener('focus', () => { cvFocused = true; if (g && g.focus < 0) g.focus = SPOT_ORDER[0]; });
 cv.addEventListener('blur', () => { cvFocused = false; });
@@ -898,6 +1030,7 @@ addEventListener('keydown', ev => {
   if (!g) return;
   if ((k === 'p' || k === 'P') && !g.over && (!modal || modal.pause)) return setPaused(!g.paused); // true toggle, also from the pause modal
   if (modal) { if (k === 'Escape' && modal.close) modal.close(); return; }
+  if ((k === 'k' || k === 'K') && !g.over) { ev.preventDefault(); return openCastle(); }
   const onBtn = document.activeElement?.tagName === 'BUTTON';
   if (k >= '1' && k <= '5') { const t = ORDER[+k - 1]; if (g.radial != null) pickCard(t); else g.slot = g.slot === t ? null : t; }
   else if (k.startsWith('Arrow') && !onBtn) { ev.preventDefault(); cv.focus(); moveFocus(k); }
