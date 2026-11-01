@@ -51,7 +51,7 @@ function mobileCSS() { // td-pack-2/ui/mobile skin for sheet + rail modes, gener
   R.push('#ui .bbar button.slot.barslot,#ui .bbar button.slot.barslot.off,#ui .bbar button.slot.barslot.sel{border:0!important;border-image:none!important;background:none!important;box-sizing:border-box}');
   R.push(`#ui .bbar .barslot:active .tbox{background-image:url("${uiSrc(U.slot64, 'pressed')}")}#ui .bbar .barslot.off .tbox{background-image:url("${uiSrc(U.slot64, 'disabled')}")}`);
   // TD-10: no towerSlotSel overlay (its cost plate would sit on the icon); selection = slot64 'selected' frame round the whole slot
-  R.push(`#ui:not(.m-desktop) .wbar{${nine(U.waveFrame, '', 1)}background:none;box-sizing:border-box;padding:0}`, `#ui:not(.m-desktop) .wfill{${nine(U.waveFill, '', 1)}border-top-width:0;border-bottom-width:0;background:none;box-sizing:border-box;min-width:12px}`);
+  R.push(`#ui .hud .wbar{${nine(U.waveFrame, '', .5)}background:none;box-sizing:border-box;padding:0}`, `#ui .hud .wfill{${nine(U.waveFill, '', .5)}border-top-width:0;border-bottom-width:0;background:none;box-sizing:border-box}`);
   st('#ui:not(.m-desktop) .hud', U.hudPanelTop, '', 0.5); R.push(`#ui:not(.m-desktop) .hud{background-image:none!important;border-radius:0}`);
   R.push(`#ui:not(.m-desktop) .tipb{${nine(U.tooltip, '')}background:none;color:#2a1a12}`);
   // TD-11c: boss banner = hud2 ribbon_boss 9-slice (72px caps, body stretches); text stays live. z = banner height / 80px art height
@@ -544,20 +544,27 @@ function howTo() {
 // ---------- UI: game (SPEC-mobile.md §3) ----------
 let H$ = {};
 const live = (s) => { if (H$.live) H$.live.textContent = s; };
-function stat(p, icon, cls = '') { const s = h('div', p, 'stat ' + cls), i = img(s, icon, 'nopt hudico'); return [i, h('span', s, 'out display num')]; }
+function stat(p, icon, label, cls = '') {
+  const s = h('div', p, 'stat ' + cls), i = img(s, icon, 'nopt hudico');
+  const value = h('span', s, 'out display num', '—');
+  h('span', s, 'stat-label', label); return [i, value];
+}
 function startGame() {
   newSeed(); g = null; setMap(pickMap());
   screen = 'game'; newGame(); clearUI(); setMusic('battle');
-  const hud = H$.hud = h('div', ui, 'hud'); hud.style.backgroundImage = url('hud_body'); H$.hud.title = '';
-  const a = h('div', hud, 'hgrp');
-  H$.gold = stat(a, 'icon_gold')[1]; [H$.heart, H$.lives] = stat(a, 'icon_heart'); H$.leftS = stat(a, 'icon_skull', 'skull'); H$.left = H$.leftS[1];
-  const wc = h('div', hud, 'hgrp wavechip'); img(wc, 'icon_wave', 'nopt hudico'); H$.wave2 = h('span', wc, 'out display num');
-  const c = h('div', hud, 'hgrp right');
-  const pf = H$.wbar = h('div', c, 'wbar nopt'); pf.style.backgroundImage = url('bar_frame'); H$.wfill = h('div', pf, 'wfill'); H$.wfill.style.backgroundImage = url('wave_fill');
+  const hud = H$.hud = h('div', ui, 'hud'); hud.style.cssText = nine(M.ui.hudPanelTop, '', .36); hud.setAttribute('aria-label', 'Battle status');
+  const a = h('div', hud, 'hgrp hud-values');
+  H$.gold = stat(a, 'icon_gold', 'Gold')[1]; [H$.heart, H$.lives] = stat(a, 'icon_heart', 'Lives'); H$.leftS = stat(a, 'icon_skull', 'Enemies', 'skull'); H$.left = H$.leftS[1];
+  H$.wave2 = stat(a, 'icon_wave', 'Wave')[1];
+  const c = h('div', hud, 'hgrp right hud-controls');
+  const progress = h('div', c, 'hud-progress');
+  H$.wave = h('span', progress, 'progress-label', 'Prepare your defenses');
+  const pf = H$.wbar = h('div', progress, 'wbar nopt'); pf.style.backgroundImage = url('bar_frame');
+  pf.setAttribute('role', 'progressbar'); pf.setAttribute('aria-label', 'Enemies remaining'); pf.setAttribute('aria-valuemin', '0'); pf.setAttribute('aria-valuemax', '100');
+  H$.wfill = h('div', pf, 'wfill'); H$.wfill.style.backgroundImage = url('wave_fill');
   H$.speed = btn(c, '', () => { g.speed = g.speed === 1 ? 2 : 1; }, 'Game speed 1x', 'hb');
   H$.pause = btn(c, '', () => setPaused(!g.paused), 'Pause', 'hb');
   H$.mute = btn(c, '', () => setMuted(!muted), 'Mute sound', 'hb mutebtn');
-  const crest = h('div', ui, 'crestbox nopt'); img(crest, 'hud_center', 'nopt crestimg full'); const cc = h('img', crest, 'nopt crestimg compact'); cc.src = uiSrc(M.ui.compactCrest); cc.alt = ''; rs.setProperty('--crestY', M.ui.compactCrest.textY + 'px'); H$.wave = h('div', crest, 'out display crestt');
   onSettings = () => { setIcon(H$.mute, muted ? 'sound_off' : 'sound_on'); H$.mute.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); };
   onSettings();
   // bottom bar (sheet + desktop modes) / right rail (rail mode): next wave + start
@@ -850,8 +857,9 @@ function refreshHUD(realDt) {
   setT(H$.lives, g.lives); setC(H$.lives, 'out display num' + (g.lives < 5 ? ' low' : ''));
   g.heartFlash -= realDt; setC(H$.heart, 'nopt hudico' + (g.heartFlash > 0 ? ' flash' : ''));
   setT(H$.left, g.phase === 'wave' ? g.remaining : 0);
-  setT(H$.wave, `Wave ${g.wave}/${WAVES.length}`); setT(H$.wave2, `${g.wave}/${WAVES.length}`);
-  const fw = (g.phase === 'wave' && g.total ? Math.round(100 * g.remaining / g.total) : 0) + '%'; if (H$.wfill._w !== fw) { H$.wfill._w = fw; H$.wfill.style.width = fw; }
+  setT(H$.wave, g.phase === 'wave' ? `${g.remaining} enemies remaining` : 'Prepare your defenses'); setT(H$.wave2, `${g.wave}/${WAVES.length}`);
+  H$.wbar.setAttribute('aria-valuenow', g.phase === 'wave' && g.total ? Math.round(100 * g.remaining / g.total) : 0);
+  const fw = (g.phase === 'wave' && g.total ? Math.round(100 * g.remaining / g.total) : 0) + '%'; if (H$.wfill._w !== fw) { H$.wfill._w = fw; H$.wfill.style.width = fw; H$.wfill.hidden = fw === '0%'; }
   if (setIcon(H$.pause, g.paused ? 'play' : 'pause')) H$.pause.setAttribute('aria-label', g.paused ? 'Resume' : 'Pause');
   if (setIcon(H$.speed, g.speed === 1 ? 'speed1' : 'speed2')) H$.speed.setAttribute('aria-label', `Game speed ${g.speed}x`);
   for (const b of H$.slots) { // states never by colour alone: disabled = slashed "Need N" plate + desaturated icon; selected = 76px glow frame + lift + chevron
