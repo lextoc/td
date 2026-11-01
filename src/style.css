@@ -260,3 +260,41 @@ button.slot.off .cost{color:#e8dcc8;text-decoration:line-through 2px}
 /* TD-10b: portrait slots evenly spaced and centred in the panel, same column box for every slot */
 #ui.m-sheet .bbar{justify-content:center}
 #ui .bbar .barslot .price,#ui .bbar .barslot .tname{align-self:stretch;text-align:center}
+
+/* ===== TD-11: main menu, How to play, win/lose screens (self-contained block) ===== */
+@keyframes td11-rise{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes td11-drop{0%{opacity:0;transform:translateY(-40px) scale(1.15)}70%{transform:translateY(4px) scale(.98)}100%{opacity:1;transform:none}}
+@keyframes td11-glow{0%,100%{filter:drop-shadow(0 0 6px rgba(255,210,90,.5))}50%{filter:drop-shadow(0 0 18px rgba(255,220,120,.95))}}
+@keyframes td11-sink{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+.modal.title .tcard{animation:td11-rise .6s cubic-bezier(.2,.8,.2,1) both}
+.modal.title .logo{animation:td11-drop .7s .1s cubic-bezier(.2,.8,.2,1) both,td11-glow 3.5s 1s ease-in-out infinite;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+.modal.title .col{gap:10px}
+.modal.title .col .b{min-height:48px;font-size:18px}
+.modal.title .col .b:first-child{min-height:60px;font-size:24px;letter-spacing:.04em}
+.modal.title .col .b:nth-child(n+3){font-size:16px;opacity:.92}
+.modal.title .foot{font-size:16px;color:#ffe9b0;text-shadow:0 2px 0 #000;margin-top:10px;text-align:center}
+.modal.howto .mpanel{animation:td11-rise .4s cubic-bezier(.2,.8,.2,1) both}
+.modal.howto .hstep{animation:td11-rise .4s both;background:rgba(0,0,0,.25);border-radius:10px;padding:6px 10px}
+.modal.howto .hstep:nth-child(2){animation-delay:.08s}.modal.howto .hstep:nth-child(3){animation-delay:.16s}.modal.howto .hstep:nth-child(4){animation-delay:.24s}
+.modal.howto .hstep b{color:#ffd76a;font-size:17px;text-shadow:0 2px 0 #000}
+.modal.howto .htitle{text-shadow:0 3px 0 #5a2d0c,0 0 12px rgba(255,200,90,.5)}
+.endscr .tcard{animation:td11-rise .6s cubic-bezier(.2,.8,.2,1) both}
+.endscr .trib{animation:td11-drop .7s .15s both}
+.endscr.win>.dim{background:radial-gradient(circle at 50% 35%,rgba(255,200,80,.45),rgba(40,20,0,.75) 70%)}
+.endscr.win .trib{animation:td11-drop .7s .15s both,td11-glow 2.5s 1s ease-in-out infinite}
+.endscr.lose>.dim{background:radial-gradient(circle at 50% 40%,rgba(40,10,20,.6),rgba(0,0,0,.9) 75%)}
+.endscr.lose .tcard{filter:saturate(.55) brightness(.92);animation:td11-sink .8s ease-out both}
+.endscr .big2{font-size:20px;color:#fff;text-shadow:0 2px 0 #000}
+.endscr.win .big2{color:#ffe08a}.endscr.lose .big2{color:#e8c7c7}
+.estats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0 6px}
+.estat{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.35);border-radius:10px;padding:8px 4px;color:#fff;animation:td11-rise .4s both}
+.estat:nth-child(2){animation-delay:.1s}.estat:nth-child(3){animation-delay:.2s}.estat:nth-child(4){animation-delay:.3s}
+.estat img{width:36px;height:36px;object-fit:contain}
+.estat b{font-size:22px;line-height:1.2;text-shadow:0 2px 0 #000}
+.estat span{font-size:16px;color:#e6dcc4;text-align:center}
+.endscr .etime{font-size:16px;color:#e6dcc4}
+.endscr .eplay{min-height:56px !important;font-size:22px;min-width:180px !important}
+@media (max-width:480px){.estats{grid-template-columns:1fr 1fr}}
+@media (orientation:landscape) and (max-height:500px){.modal.title .col{gap:4px;width:min(360px,60vw);margin:6px auto;flex-direction:row;flex-wrap:wrap;justify-content:center}.modal.title .col .b:nth-child(-n+2){width:100%}.modal.title .col .b{min-height:44px}.modal.title .col .b:first-child{min-height:48px;font-size:20px}.modal.title .col .b:nth-child(n+3){width:calc(50% - 2px);min-width:0;box-sizing:border-box;flex:0 0 calc(50% - 2px)}.modal.title .foot{margin-top:4px}.estats{margin:6px 0 2px}.estat{padding:4px}.estat img{width:28px;height:28px}}
+@media (prefers-reduced-motion:reduce){.modal.title *,.modal.howto *,.endscr *,.modal.title .tcard,.endscr .tcard{animation:none !important}}
+/* ===== end TD-11 ===== */
