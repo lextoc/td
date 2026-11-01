@@ -40,9 +40,10 @@ function mobileCSS() { // td-pack-2/ui/mobile skin for sheet + rail modes, gener
   // TD-9a hud2 skin: bottom panel / rail, build-bar slots, Start wave, wave progress
   st('#ui:not(.m-desktop) .bbar', U.hudPanel, '', 0.5); R.push(`#ui:not(.m-desktop) .bbar{border-image-source:url("${uiSrc(U.hudPanel)}")!important}`);
   st('#ui:not(.m-desktop) .bbar .start', U.startWave, 'normal'); st('#ui:not(.m-desktop) .bbar .start:active', U.startWave, 'pressed'); st('#ui:not(.m-desktop) .bbar .start:disabled', U.startWave, 'disabled');
-  R.push(`#ui:not(.m-desktop) .bbar .barslot{border:0;background:url("${uiSrc(U.towerSlot, 'normal')}") center/100% 100% no-repeat}`);
-  R.push(`#ui:not(.m-desktop) .bbar .barslot.off{background-image:url("${uiSrc(U.towerSlot, 'disabled')}")}`);
-  R.push(`#ui:not(.m-desktop) .bbar .barslot.sel::before{content:'';position:absolute;left:50%;top:50%;width:${76 / 64 * 100}%;height:${76 / 64 * 100}%;transform:translate(-50%,-50%);background:url("${uiSrc(U.towerSlotSel)}") center/100% 100% no-repeat;pointer-events:none}`);
+  // TD-10: icon tile uses the plain slot64 frame (towerSlot art has a built-in cost plate the icon would cover); cost sits below
+  R.push(`#ui .bbar .barslot{border:0;background:none}#ui .bbar .barslot .tbox{background:url("${uiSrc(U.slot64, 'normal')}") center/100% 100% no-repeat}`);
+  R.push(`#ui .bbar .barslot:active .tbox{background-image:url("${uiSrc(U.slot64, 'pressed')}")}#ui .bbar .barslot.off .tbox{background-image:url("${uiSrc(U.slot64, 'disabled')}")}`);
+  // TD-10: no towerSlotSel overlay (its cost plate would sit on the icon); selection = slot64 'selected' frame round the whole slot
   R.push(`#ui:not(.m-desktop) .wbar{${nine(U.waveFrame, '', 1)}background:none;box-sizing:border-box;padding:0}`, `#ui:not(.m-desktop) .wfill{${nine(U.waveFill, '', 1)}border-top-width:0;border-bottom-width:0;background:none;box-sizing:border-box;min-width:12px}`);
   R.push(`#ui:not(.m-desktop) .tipb{${nine(U.tooltip, '')}background:none;color:#2a1a12}`);
   const e = document.createElement('style'); e.id = 'mobile-skin'; e.textContent = R.join('\n'); document.head.appendChild(e);
@@ -511,7 +512,7 @@ function startGame() {
   onSettings();
   // bottom bar (sheet + desktop modes) / right rail (rail mode): next wave + start
   const bar = H$.bar = h('div', ui, 'bbar'); bar.style.borderImageSource = url('actionbar_body');
-  H$.slots = ORDER.map(k => slotBtn(bar, k, () => { g.slot = g.slot === k ? null : k; if (g.selSpot != null && !g.towers[g.selSpot]) pickCard(k); }, 'barslot'));
+  H$.slots = ORDER.map(k => slotBtn(bar, k, () => onSlot(k), 'barslot'));
   H$.next = h('div', bar, 'next out');
   H$.start = btn(bar, 'Start wave', startWave, 'Start wave', 'start');
   H$.toast = h('div', ui, 'toasts');
@@ -523,11 +524,13 @@ function startGame() {
 function slotBtn(parent, k, fn, cls = '') {
   const b = h('button', parent, 'slot ' + cls); b.onclick = fn;
   const name = `${TW[k].name} Tower (${ORDER.indexOf(k) + 1})`; b.title = name; b.setAttribute('aria-label', name);
-  { const ic = h('img', b, 'nopt ticon'); ic.src = uiSrc(M.ui.towerIcon, k); ic.alt = ''; ic.draggable = false; } h('span', b, 'hk', ORDER.indexOf(k) + 1); b.costEl = h('span', b, 'cost', TW[k].lv[0][0]);
+  // TD-10: icon first (own tile, nothing on top of it), then coin + cost, then the name; laid out in a column, never overlapping
+  const tb = h('span', b, 'tbox nopt'); { const ic = h('img', tb, 'nopt ticon'); ic.src = uiSrc(M.ui.towerIcon, k); ic.alt = ''; ic.draggable = false; } h('span', tb, 'hk', ORDER.indexOf(k) + 1);
+  const pr = h('span', b, 'price nopt'); b.coinEl = img(pr, 'icon_gold', 'nopt coin'); b.costEl = h('span', pr, 'cost', TW[k].lv[0][0]); h('span', b, 'tname nopt', TW[k].name);
   longPress(b, () => TW[k].name + ' Tower — ' + TW[k].lv.map((l, i) => `Lv${i + 1}: ${l[0]}g, Dmg ${l[1]}, ${l[2]}/s, Rng ${l[3]}`).join(' · '));
   b.k = k; return b;
 }
-function closePanels() { if (!g) return; g.selSpot = null; g.ghost = null; g.radial = g.sel = null; if (H$.sel) H$.sel.innerHTML = ''; H$.up = null; H$.buildBtn = null; L.panTo = 0; }
+function closePanels() { if (!g) return; g.selSpot = null; g.ghost = null; g.radial = g.sel = null; if (H$.sel) H$.sel.innerHTML = ''; H$.up = null; H$.chip = null; L.panTo = 0; }
 const spotS = i => w2s(...spotC(i));
 const ov = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 const spotRect = i => { const [sx, sy] = spotS(i), hs = L.s / 2; return { x: sx - hs, y: sy - hs, w: 2 * hs, h: 2 * hs }; };
@@ -540,57 +543,59 @@ function placeNear(p, spot) { // floating panel next to the spot: never over it,
   const best = c.reduce((a, b) => cost(b) < cost(a) ? b : a);
   p.style.left = best.x + 'px'; p.style.top = best.y + 'px';
 }
-// Selection UI. sheet: bottom sheet; rail: slots/actions in the rail + detail card; desktop: floating panel by the spot.
+// Selection UI (TD-10). Empty spot: no sheet; the spot is highlighted and the bar/rail slots become "build here" targets.
+// Picking a slot previews the tower + range on the spot and floats a small price chip next to it; chip or same slot again builds.
+// Built tower: a compact floating panel next to the spot (all modes), never over the spot, HUD or bar.
+function onSlot(k) {
+  if (g.radial != null && !g.towers[g.radial]) { if (g.ghost?.type === k) return confirmBuild(); return pickCard(k); }
+  g.slot = g.slot === k ? null : k; // no spot selected: pre-pick (desktop / keyboard)
+}
+function confirmBuild() {
+  const gh = g.ghost; if (!gh || g.towers[gh.spot]) return false;
+  if (g.gold < TW[gh.type].lv[0][0]) { play('ui_error'); return false; }
+  return build(gh.spot, gh.type) && buzz();
+}
 function openSel(spot, keep) {
   const prevType = g.ghost?.spot === spot ? g.ghost.type : null;
   closePanels(); g.selSpot = spot; g.focus = spot;
-  const t = g.towers[spot]; if (t) g.sel = spot; else g.radial = spot;
-  const wrap = H$.sel, mode = L.mode;
-  const box = panel(wrap, 'selp sel-' + mode + (t ? ' upg' : ' radial')), p = box.parentElement;
-  if (mode === 'sheet') { const hd = h('img', box, 'handle nopt'); hd.src = uiSrc(M.ui.sheetHandle); hd.alt = ''; }
-  let main = box, info = box;
-  if (mode === 'rail') { info = panel(wrap, 'card'); }
-  const title = h('div', info, 'stitle out display', t ? `${TW[t.type].name} Tower — Lv ${t.lv}` : 'Build here');
-  H$.detail = null;
+  const t = g.towers[spot];
   if (!t) {
-    const row = h('div', main, 'cards');
-    H$.cards = H$.radialSlots = ORDER.map(k => slotBtn(row, k, () => { if (g.ghost?.type === k) return build(spot, k) && buzz(); pickCard(k); }, 'card'));
-    H$.detail = h('div', info, 'detail', 'Pick a tower to preview it.');
-    const acts = h('div', mode === 'rail' ? info : main, 'acts');
-    btn(acts, 'Cancel', () => { closePanels(); cv.focus(); }, 'Cancel', 'cancel');
-    H$.buildBtn = btn(acts, 'Build', () => { if (g.ghost && build(spot, g.ghost.type)) buzz(); }, 'Build', 'confirm');
-    H$.buildBtn.disabled = true;
-    const pre = prevType || g.slot; if (pre) pickCard(pre);
-    if (!keep) (pre ? H$.buildBtn : H$.cards[0]).focus({ preventScroll: true });
-  } else {
-    const D = TW[t.type], top = h('div', main, 'urow');
-    img(top, 'avatar_' + t.type, 'nopt av');
-    const tx = h('div', mode === 'rail' ? info : top, 'utext'); h('div', tx, 'small', `Damage ${t.st[1]} · Rate ${t.st[2]}/s · Range ${t.st[3]}`);
-    if (t.lv < 3) { const n = D.lv[t.lv], nl = h('div', tx, 'small'); nl.innerHTML = `Next: <span style="color:${T.good}">Damage ${n[1]}</span> · Rate ${n[2]}/s · <span style="color:${T.good}">Range ${n[3]}</span>`; }
-    else h('div', tx, 'small', 'Max level reached');
-    const acts = h('div', mode === 'rail' ? info : main, 'acts');
-    H$.sell = btn(acts, `Sell ${Math.floor(t.invested * .7)}`, () => sell(spot), null, 'sellb');
-    H$.up = btn(acts, '', () => upgrade(spot), null, 'confirm');
-    H$.close = btn(acts, 'Close', () => { closePanels(); cv.focus(); }, 'Close', 'cancel');
-    refreshUpgrade();
-    if (!keep) (H$.up.disabled ? H$.sell : H$.up).focus({ preventScroll: true });
+    g.radial = spot;
+    const pre = prevType || g.slot; if (pre) pickCard(pre, keep);
+    live(`Spot ${spot + 1} selected. Pick a tower.`); return;
   }
-  void title;
-  if (mode === 'desktop') placeNear(p, spot);
-  else if (mode === 'rail') { const cardP = info.parentElement; cardP.classList.toggle('flip', SPOTS[spot][0] >= Math.ceil(COLS * 2 / 3)); }
-  else { // portrait: pan the map so the spot sits one tile above the sheet
-    const top = L.vh - p.offsetHeight, [, sy] = w2s(...spotC(spot)), cur = L.pan;
-    const need = sy + cur - L.pan + L.s / 2 + L.s - top; L.panTo = Math.max(0, Math.min(MAP_EXTRA, cur + need)); if (need < 0) L.panTo = Math.max(0, cur + need);
-    if (reduced) L.pan = L.panTo;
-  }
-  live(t ? `${TW[t.type].name} tower selected` : `Spot ${spot + 1} selected`);
+  g.sel = spot;
+  const box = panel(H$.sel, 'selp sel-float upg'), p = box.parentElement, D = TW[t.type];
+  h('div', box, 'stitle out display', `${D.name} Lv ${t.lv}`);
+  const tx = h('div', box, 'utext'); h('div', tx, 'small', `Dmg ${t.st[1]} · ${t.st[2]}/s · Rng ${t.st[3]}`);
+  if (t.lv < 3) { const n = D.lv[t.lv], nl = h('div', tx, 'small'); nl.innerHTML = `Next: <span style="color:${T.good}">Dmg ${n[1]}</span> · ${n[2]}/s · <span style="color:${T.good}">Rng ${n[3]}</span>`; }
+  const acts = h('div', box, 'acts');
+  H$.sell = btn(acts, `Sell ${Math.floor(t.invested * .7)}`, () => sell(spot), null, 'sellb');
+  H$.up = btn(acts, '', () => upgrade(spot), null, 'confirm');
+  H$.close = btn(acts, 'Close', () => { closePanels(); cv.focus(); }, 'Close', 'cancel');
+  refreshUpgrade();
+  if (!keep) (H$.up.disabled ? H$.sell : H$.up).focus({ preventScroll: true });
+  placeNear(p, spot);
+  live(`${D.name} tower selected`);
 }
-function pickCard(k) {
-  if (g.selSpot == null || g.towers[g.selSpot]) return;
-  g.ghost = { spot: g.selSpot, type: k }; g.slot = k;
-  const c = TW[k].lv[0][0], [, d, r, rg] = TW[k].lv[0], okG = g.gold >= c;
-  if (H$.detail) setT(H$.detail, `${TW[k].name} — Damage ${d} · Rate ${r}/s · Range ${rg}`);
-  if (H$.buildBtn) { setT(H$.buildBtn, okG ? `Build ${c}` : `Need ${c}`); H$.buildBtn.disabled = !okG; H$.buildBtn.setAttribute('aria-label', `Build ${TW[k].name} Tower, ${c} gold`); }
+function pickCard(k, keep) {
+  const spot = g.radial; if (spot == null || g.towers[spot]) return;
+  g.ghost = { spot, type: k };
+  if (!H$.chip) {
+    const c = H$.chip = h('button', H$.sel, 'chip display'); c.onclick = () => { play('ui_click'); confirmBuild(); };
+    img(c, 'icon_gold', 'nopt coin'); c.txt = h('span', c, 'out');
+  }
+  refreshChip(true);
+  if (!keep) H$.chip.focus({ preventScroll: true });
+  live(`${TW[k].name} Tower preview, ${TW[k].lv[0][0]} gold`);
+}
+function refreshChip(force) {
+  const c = H$.chip, gh = g.ghost; if (!c || !gh) return;
+  const cost = TW[gh.type].lv[0][0], ok = g.gold >= cost, key = gh.type + ok + (ok ? '' : g.gold);
+  if (c._k === key && !force) return; c._k = key;
+  setT(c.txt, ok ? cost : `Need ${cost - g.gold}`); c.disabled = !ok; c.classList.toggle('off', !ok);
+  c.setAttribute('aria-label', ok ? `Build ${TW[gh.type].name} Tower, ${cost} gold` : `${TW[gh.type].name} Tower, need ${cost - g.gold} more gold`);
+  placeNear(c, gh.spot);
 }
 const plural = (n, name) => `${n} ${name}${n === 1 ? '' : 's'}`;
 const waveLabel = w => [...new Set(WAVES[w - 1][0].map(g => EN[g[0]].name + 's'))].join(' & ');
@@ -681,13 +686,13 @@ function refreshHUD(realDt) {
   if (setIcon(H$.pause, g.paused ? 'play' : 'pause')) H$.pause.setAttribute('aria-label', g.paused ? 'Resume' : 'Pause');
   if (setIcon(H$.speed, g.speed === 1 ? 'speed1' : 'speed2')) H$.speed.setAttribute('aria-label', `Game speed ${g.speed}x`);
   for (const b of H$.slots) { // states never by colour alone: disabled = slashed "Need N" plate + desaturated icon; selected = 76px glow frame + lift + chevron
-    const c = TW[b.k].lv[0][0], off = g.gold < c, sel = g.slot === b.k;
+    const c = TW[b.k].lv[0][0], off = g.gold < c, sel = g.radial != null ? g.ghost?.type === b.k : g.slot === b.k;
     setC(b, 'slot barslot' + (sel ? ' sel' : '') + (off ? ' off' : '')); setT(b.costEl, off ? `Need ${c - g.gold}` : c);
     if (b._off !== off) { b._off = off; b.setAttribute('aria-disabled', off); b.setAttribute('aria-label', `${TW[b.k].name} Tower, ${off ? `need ${c - g.gold} more gold` : c + ' gold'}`); }
     if (b._sel !== sel) { b._sel = sel; b.setAttribute('aria-pressed', sel); }
   }
-  if (g.radial != null && H$.cards) for (const b of H$.cards) setC(b, 'slot card' + (g.ghost?.type === b.k ? ' sel' : '') + (g.gold < TW[b.k].lv[0][0] ? ' off' : ''));
-  setC(H$.bar, 'bbar' + (g.phase === 'wave' ? ' inwave' : ''));
+  refreshChip();
+  setC(H$.bar, 'bbar' + (g.phase === 'wave' ? ' inwave' : '') + (g.radial != null ? ' picking' : ''));
   if (L.pan !== L.panTo) { const d = L.panTo - L.pan; L.pan = Math.abs(d) < 1 ? L.panTo : L.pan + d * Math.min(1, realDt / .08); }
   setT(H$.start, g.phase === 'build' ? (L.mode === 'rail' ? `Start ${Math.ceil(g.countdown)}` : `Start wave (${Math.ceil(g.countdown)})`) : 'Start wave'); if (H$.start.disabled !== (g.phase !== 'build')) H$.start.disabled = g.phase !== 'build';
   const nw = g.wave + 1;
@@ -838,7 +843,7 @@ addEventListener('keydown', ev => {
   const onBtn = document.activeElement?.tagName === 'BUTTON';
   if (k >= '1' && k <= '5') { const t = ORDER[+k - 1]; if (g.radial != null) pickCard(t); else g.slot = g.slot === t ? null : t; }
   else if (k.startsWith('Arrow') && !onBtn) { ev.preventDefault(); cv.focus(); moveFocus(k); }
-  else if (k === 'Enter' && !onBtn && g.focus >= 0) { ev.preventDefault(); activateSpot(g.focus); }
+  else if (k === 'Enter' && !onBtn && g.focus >= 0) { ev.preventDefault(); if (g.ghost && g.radial === g.focus) confirmBuild(); else activateSpot(g.focus); }
   else if (k === 'u' || k === 'U') { if (g.sel != null) upgrade(g.sel); }
   else if (k === 's' || k === 'S') { if (g.sel != null) sell(g.sel); }
   else if (k === 'z' || k === 'Z') undoSell();
@@ -847,7 +852,7 @@ addEventListener('keydown', ev => {
   else if (k === 'Escape') { if (g.radial != null || g.sel != null) { closePanels(); cv.focus(); } else if (g.slot) g.slot = null; else setPaused(true); }
 });
 
-if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, get map() { return MAP.id; }, get seed() { return SEED; }, get PATHLEN() { return PLEN; }, get MAPS() { return MAPS; }, setMap, layout, get MAPOBJ() { return MAP; }, pathArt, L, spotS, s2w, w2s, spotAtXY };
+if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, onSlot, confirmBuild, get map() { return MAP.id; }, get seed() { return SEED; }, get PATHLEN() { return PLEN; }, get MAPS() { return MAPS; }, setMap, layout, get MAPOBJ() { return MAP; }, pathArt, L, spotS, s2w, w2s, spotAtXY };
 layout(); fontReady.then(titleScreen);
 
 mobileCSS();

@@ -29,12 +29,13 @@ let s = await td(p, () => ({ gold: td.g.gold, lives: td.g.lives, cd: td.g.countd
 ok(s.gold === 250 && s.lives === 20 && s.map === 'landscape' && s.mode === 'desktop' && s.s === 128, `1920x1080: ${JSON.stringify(s)}`);
 let sp = await td(p, () => td.spotS(1));
 await p.mouse.click(sp[0], sp[1]); await p.waitForTimeout(150);
-const pr = await p.locator('.selp').boundingBox(), spr = { x: sp[0] - 64, y: sp[1] - 64, w: 128, h: 128 };
-ok(pr && rectOv({ x: pr.x, y: pr.y, w: pr.width, h: pr.height }, spr) === 0, 'build panel does not cover the selected spot');
-await p.locator('.cards button[aria-label="Archer Tower (1)"]').click();
-ok(await td(p, () => td.g.ghost?.type) === 'archer' && !(await td(p, () => td.g.towers[1])), 'tap card shows ghost preview, nothing built yet');
-await p.locator('.cards button[aria-label="Archer Tower (1)"]').click();
-ok(await td(p, () => td.g.towers[1]?.type) === 'archer' && await td(p, () => td.g.gold) === 180, 'same card again confirms: archer built, gold 250→180');
+ok(await td(p, () => td.g.radial) === 1 && !(await p.locator('.selp').count()), 'click spot selects it (no build sheet)');
+await p.locator('.barslot[aria-label^="Archer"]').click();
+ok(await td(p, () => td.g.ghost?.type) === 'archer' && !(await td(p, () => td.g.towers[1])) && await p.locator('.chip').isVisible(), 'slot shows ghost preview + chip, nothing built yet');
+const cr = await p.locator('.chip').boundingBox(), spr = { x: sp[0] - 64, y: sp[1] - 64, w: 128, h: 128 };
+ok(rectOv({ x: cr.x, y: cr.y, w: cr.width, h: cr.height }, spr) === 0, 'chip does not cover the selected spot');
+await p.locator('.barslot[aria-label^="Archer"]').click();
+ok(await td(p, () => td.g.towers[1]?.type) === 'archer' && await td(p, () => td.g.gold) === 180, 'same slot again confirms: archer built, gold 250→180');
 // keyboard: Tab focuses map, arrows move, number preselects, Enter opens, Enter builds
 await p.locator('#cv').focus();
 await p.keyboard.press('4'); await p.keyboard.press('ArrowRight');
@@ -88,14 +89,14 @@ if (process.env.ONLY !== "fast") for (const [w, h, dpr, map, mode] of [[390, 844
   if (dpr > 1) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y);
   await p.waitForTimeout(250);
   const now = await td(p, (i) => td.spotS(i), i);
-  const box = await p.locator('.selp').boundingBox();
+  await p.locator('.barslot[aria-label^="Archer"]').click(); await p.waitForTimeout(100);
+  const box = await p.locator('.chip').boundingBox();
   const cov = rectOv({ x: box.x, y: box.y, w: box.width, h: box.height }, { x: now[0] - L.s / 2, y: now[1] - L.s / 2, w: L.s, h: L.s });
-  ok(cov === 0, `${w}x${h}: selection UI does not cover the selected spot (pan ${await td(p, () => td.L.pan.toFixed(0))})`);
+  ok(cov === 0, `${w}x${h}: chip does not cover the selected spot`);
   const small = await p.$$eval('#ui button', bs => bs.filter(b => b.offsetParent && (b.getBoundingClientRect().width < 44 || b.getBoundingClientRect().height < 44)).map(b => b.ariaLabel || b.textContent));
   ok(small.length === 0, `${w}x${h}: all visible buttons >= 44px ${small.join(',')}`);
-  await p.locator('.cards button[aria-label="Archer Tower (1)"]').click();
-  await p.getByRole('button', { name: /^Build Archer/ }).click();
-  ok(await td(p, (i) => td.g.towers[i]?.type, i) === 'archer', `${w}x${h}: tap spot → card → Build builds`);
+  await p.locator('.chip').click();
+  ok(await td(p, (i) => td.g.towers[i]?.type, i) === 'archer', `${w}x${h}: tap spot → slot → chip builds`);
   await p.screenshot({ path: `${OUT}vp-${w}x${h}.png` });
   await p.done();
 }
@@ -188,6 +189,74 @@ for (const [w, h] of [[390, 844], [844, 390]]) for (const seed of [7, 4242, 9021
     const tf = await td(p, () => getComputedStyle(document.querySelector('.bbar .barslot')).transform); await p.mouse.up();
     ok(tf !== 'none', `${w}x${h}: pressed slot uses a CSS transform (${tf})`);
   }
+  await p.done();
+}
+
+// 2e. TD-10: icon-first slots + spot → slot → chip build flow (both orientations, touch)
+mkdirSync(new URL('../screenshots/td10/', import.meta.url).pathname, { recursive: true });
+const SHOT = new URL('../screenshots/td10/', import.meta.url).pathname;
+for (const [w, h] of [[390, 844], [844, 390], [360, 640]]) {
+  p = await open('?debug', { width: w, height: h }, true, 3);
+  await td(p, () => td.startGame()); await p.waitForTimeout(400);
+  const lay = await td(p, () => {
+    const R = e => e.getBoundingClientRect(), ov = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    return [...document.querySelectorAll('.bbar .barslot')].map(b => {
+      const ic = R(b.querySelector('img.ticon')), co = b.querySelector('.cost'), nm = b.querySelector('.tname'), coin = b.querySelector('img.coin'), r = R(b);
+      return { k: b.k, iconW: ic.width, hit: ov(ic, R(co)) + ov(ic, R(nm)) + ov(ic, R(coin)), below: R(co).top >= ic.bottom - 1 && R(nm).top >= R(co).top, cost: parseFloat(getComputedStyle(co).fontSize), name: parseFloat(getComputedStyle(nm).fontSize), w: r.width, h: r.height };
+    });
+  });
+  const short = h < 700 || w < 380;
+  ok(lay.length === 5 && lay.every(q => q.hit === 0 && q.below && q.iconW >= 28), `${w}x${h}: slot icon not overlapped, coin+cost then name below it ${JSON.stringify(lay.map(q => [q.k, q.hit, q.iconW.toFixed(0)]))}`);
+  ok(lay.every(q => q.cost >= 16 && q.name >= (short ? 14 : 16)), `${w}x${h}: cost >= 16px, name >= ${short ? 14 : 16}px ${JSON.stringify(lay.map(q => [q.cost, q.name]))}`);
+  ok(lay.every(q => q.w >= 48 && q.h >= 48), `${w}x${h}: slot targets >= 48px ${JSON.stringify(lay.map(q => [q.w.toFixed(0), q.h.toFixed(0)]))}`);
+  if (h !== 640) await p.screenshot({ path: `${SHOT}slots-${w}x${h}.png` });
+  const free = await td(p, () => td.SPOTS.map((_, i) => i).filter(i => !td.g.towers[i]));
+  const spot = free[Math.floor(free.length / 2)], [x, y] = await td(p, (i) => td.spotS(i), spot);
+  const slotC = async k => { const b = await p.locator(`.bbar .barslot[aria-label^="${k}"]`).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+  // select spot
+  await p.touchscreen.tap(x, y); await p.waitForTimeout(150);
+  ok(await td(p, () => td.g.radial) === spot && await p.locator('.bbar.picking').count() === 1 && !(await p.locator('.chip').count()), `${w}x${h}: tap spot selects it, bar slots become build targets, no sheet`);
+  // pick slot → preview + chip
+  let c = await slotC('Cannon'); await p.touchscreen.tap(...c); await p.waitForTimeout(150);
+  const st = await td(p, () => {
+    const ch = document.querySelector('.chip'), r = ch.getBoundingClientRect(), R = e => e.getBoundingClientRect();
+    const hud = R(document.querySelector('.hud')), bar = R(document.querySelector('.bbar')), ov = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    return { ghost: td.g.ghost?.type, built: !!td.g.towers[td.g.radial], txt: ch.textContent.trim(), h: r.height, w: r.width, on: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, hud: ov(r, hud), bar: ov(r, bar), sheet: !!document.querySelector('.selp:not(.sel-float)') };
+  });
+  ok(st.ghost === 'cannon' && !st.built && st.txt === '120' && !st.sheet, `${w}x${h}: slot shows range preview + chip with price, nothing built ${JSON.stringify(st)}`);
+  ok(st.on && st.hud === 0 && st.bar === 0 && st.h >= 48 && st.w >= 48, `${w}x${h}: chip on-screen, clear of HUD/panel, >= 48px`);
+  if (h !== 640) await p.screenshot({ path: `${SHOT}buildflow-${w}x${h}.png` });
+  // switch slot, confirm via chip → built, gold deducted
+  c = await slotC('Archer'); await p.touchscreen.tap(...c); await p.waitForTimeout(100);
+  const g0 = await td(p, () => td.g.gold), cb = await p.locator('.chip').boundingBox();
+  await p.touchscreen.tap(cb.x + cb.width / 2, cb.y + cb.height / 2); await p.waitForTimeout(150);
+  ok(await td(p, (i) => td.g.towers[i]?.type, spot) === 'archer' && g0 - await td(p, () => td.g.gold) === 70 && !(await p.locator('.chip').count()), `${w}x${h}: chip confirms: archer built, gold -70`);
+  // same-slot fast double tap (40ms) builds
+  const s2 = await td(p, () => td.SPOTS.map((_, i) => i).filter(i => !td.g.towers[i])), sB = s2[0], [x2, y2] = await td(p, (i) => td.spotS(i), sB);
+  await p.touchscreen.tap(x2, y2); await p.waitForTimeout(120);
+  c = await slotC('Mage'); await p.touchscreen.tap(...c); await p.waitForTimeout(40); await p.touchscreen.tap(...c); await p.waitForTimeout(150);
+  ok(await td(p, (i) => td.g.towers[i]?.type, sB) === 'mage', `${w}x${h}: fast same-slot double tap builds`);
+  // tap elsewhere cancels
+  const sC = s2[1], [x3, y3] = await td(p, (i) => td.spotS(i), sC);
+  await p.touchscreen.tap(x3, y3); await p.waitForTimeout(120); c = await slotC('Frost'); await p.touchscreen.tap(...c); await p.waitForTimeout(120);
+  const s = await td(p, () => td.L.s), far = await td(p, ([x, y, s]) => { // empty, non-spot map point
+    for (let yy = innerHeight * .2; yy < innerHeight * .8; yy += 9) for (let xx = 20; xx < innerWidth * .6; xx += 9) { const q = td.spotAtXY(xx, yy); if ((q == null || q < 0) && Math.hypot(xx - x, yy - y) > 2 * s && document.elementFromPoint(xx, yy)?.tagName === 'CANVAS') return [xx, yy]; } }, [x3, y3, s]);
+  const gb = await td(p, () => td.g.gold);
+  await p.touchscreen.tap(...far); await p.waitForTimeout(150);
+  ok(await td(p, () => td.g.radial == null && !td.g.ghost) && !(await p.locator('.chip').count()) && !(await td(p, (i) => !!td.g.towers[i], sC)) && await td(p, () => td.g.gold) === gb, `${w}x${h}: tap elsewhere on the map cancels (nothing built)`);
+  // can't afford: Need N, cannot confirm
+  await td(p, () => { td.g.gold = 50; }); await p.touchscreen.tap(x3, y3); await p.waitForTimeout(120);
+  c = await slotC('Tesla'); await p.touchscreen.tap(...c); await p.waitForTimeout(120);
+  const na = await td(p, () => { const ch = document.querySelector('.chip'); return { t: ch?.textContent.trim(), d: ch?.disabled, slot: document.querySelector('.bbar .barslot.off .cost')?.textContent }; });
+  await p.locator('.chip').click({ force: true }).catch(() => {}); await p.touchscreen.tap(...c); await p.waitForTimeout(150);
+  ok(na.t === 'Need 100' && na.d && /^Need \d+$/.test(na.slot) && !(await td(p, (i) => !!td.g.towers[i], sC)) && await td(p, () => td.g.gold) === 50 && !(await p.locator('.locked').count()), `${w}x${h}: can't afford → "Need N", chip and slot cannot confirm ${JSON.stringify(na)}`);
+  // upgrade panel covers no more map than the old floating radial/selection panel (pre-TD-10 desktop: 460x270 = 124k px²)
+  await p.keyboard.press('Escape'); await td(p, () => { td.g.gold = 999; }); await p.waitForTimeout(100);
+  await p.touchscreen.tap(x, y); await p.waitForTimeout(150);
+  const up = await td(p, () => { const r = document.querySelector('.sel-float').getBoundingClientRect(); return { a: r.width * r.height, h: r.height, on: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight }; });
+  ok(up.on && up.a <= 124372 && up.h <= 170, `${w}x${h}: upgrade panel compact (${up.a.toFixed(0)}px²) and on-screen`);
+  await p.getByRole('button', { name: /^Upgrade/ }).click();
+  ok(await td(p, (i) => td.g.towers[i].lv, spot) === 2, `${w}x${h}: upgrade still works`);
   await p.done();
 }
 
