@@ -396,7 +396,7 @@ function damage(e, n) {
   if (e.hp <= 0) {
     play('enemy_death_' + (1 + Math.floor(Math.random() * 3)));
     e.dead = true; g.remaining--; g.stats.kills++; addGold(killReward(e.d.gold, g.kingdom)); g.dying.push({ type: e.type, x: e.x, y: e.y, face: e.face, t: 0 });
-    burst(e.x, e.y - 30, { n: e.d.boss ? 40 : 10, col: '#e8d9b8', sz: e.d.boss ? 14 : 9, v: e.d.boss ? 320 : 180, life: .5, gr: 200, kind: 'dust' }); coinFx(e.x, e.y - 40, e.d.boss); if (e.d.boss) shake(14);
+    burst(e.x, e.y - 30, { n: e.d.boss ? 18 : 5, col: '#e8d9b8', sz: e.d.boss ? 10 : 5, v: e.d.boss ? 180 : 100, life: .32, gr: 200, kind: 'dust' }); coinFx(e.x, e.y - 40, e.d.boss); if (e.d.boss) shake(14);
     if (!sprite('enemy.' + e.type, 'death')) addFx(M.sprites?.['enemy.' + e.type]?.deathFx || 'fx_death_puff', e.x, e.y); 
   }
 }
@@ -1028,14 +1028,13 @@ function render() {
   for (const e of g.enemies) {
     const walk = e.walk || newWalk(), animation = sprite('enemy.' + e.type, 'walk');
     const fr = enemyFrame(e.type, 'walk', animation ? walkFrameTime(walk, animation) : e.walkT, e.face);
-    const hit = e.flash > 0 && sprite('enemy.' + e.type, 'hit'), hf = hit ? frameOf({ ...hit, loop: false }, ((.12 - e.flash) / .12) * (hit.frames || 1) / (hit.fps || 12), e.face) : null;
     items.push([w2s(e.x, e.y + 36)[1], () => {
       at(e.x, e.y + 36);
       drawEnemyGround(ctx, e, reduced);
       const appearance = enemyAppearance(e, reduced); ctx.rotate(appearance.tilt); ctx.scale(appearance.scale, appearance.scale);
-      if (hf) { ctx.translate(0, reduced ? 0 : -Math.sin((.12 - e.flash) / .12 * Math.PI) * 1.5); drawFrame(hf, 1, 1, appearance.alpha); }
-      else if (e.flash > 0) drawFrame(fr, 1, 1, appearance.alpha, e.flash / .12 * .35);
-      else drawWalking(ctx, fr, walk, { reduced, shadow: false, alpha: appearance.alpha, weight: e.d.boss ? 1.6 : e.type === 'goblin' ? .8 : 1 });
+      drawWalking(ctx, fr, walk, { reduced, shadow: false, alpha: appearance.alpha,
+        flashFrame: e.flash > 0 && fr ? whiteOf(fr) : null, flash: reduced ? 0 : e.flash / .12 * .16,
+        weight: e.d.boss ? 1.6 : e.type === 'goblin' ? .8 : 1 });
     }]);
   }
   for (const d of g.dying) {
@@ -1073,8 +1072,10 @@ function render() {
       const time = reduced ? Math.max(0, ((a.frames || 1) - 1) / (a.fps || 12) * .5) : f.t;
       at(f.x, f.y);
       const fr = frameOf({ ...a, loop: false }, time, 'right');
-      const z = (fr && a.drawSize ? a.drawSize / fr.sw : 1) * (f.s || 1) * pose.scale;
-      drawFrame(fr, z, z, pose.alpha);
+      const footprint = { impact_archer: .45, impact_mage: .6, impact_frost: .65, impact_tesla: .6 };
+      const size = f.k === 'fx_coin_burst' ? 88 : a.drawSize;
+      const z = (fr && size ? size / fr.sw : 1) * (footprint[f.k] || 1) * (f.s || 1) * pose.scale;
+      drawFrame(fr, z, z, pose.alpha * (f.k.startsWith('impact_') ? .78 : 1));
     }
   };
   drawFx(false);

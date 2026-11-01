@@ -27,7 +27,7 @@ const context = {
 };
 walk.strength = 1;
 drawWalking(context,fr,walk);
-assert.ok(draws > 1);assert.equal(depth,0);
+assert.equal(draws,1,'Walking preserves the complete sprite without sliced body parts');assert.equal(depth,0);
 rotations=0;draws=0;
 drawWalking(context,fr,walk,{reduced:true});
 assert.equal(draws,1);assert.equal(rotations,0);assert.equal(depth,0);

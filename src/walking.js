@@ -24,37 +24,20 @@ export function walkFrameTime(walk, animation) {
   return walk.phase * (animation.frames || 1) / (animation.fps || 10);
 }
 
-export function drawWalking(c, fr, walk, { reduced = false, weight = 1, shadow = true, alpha = 1 } = {}) {
+export function drawWalking(c, fr, walk, { reduced = false, weight = 1, shadow = true, alpha = 1, flashFrame = null, flash = 0 } = {}) {
   if (!fr) return;
   const phase = walk.phase * TAU, strength = reduced ? 0 : walk.strength;
   const beat = Math.cos(phase * 2), sway = Math.sin(phase);
-  const bob = (1 - beat) * 1.2 * strength * weight;
+  const bob = (1 - beat) * .65 * strength * weight;
   c.save();
   c.fillStyle = '#172016'; c.globalAlpha = shadow ? .13 * alpha : 0;
   c.beginPath(); c.ellipse(0, 0, fr.sw * .22, fr.sh * .035, 0, 0, TAU); c.fill(); c.globalAlpha = alpha;
   c.translate(0, -bob);
-  c.rotate((sway * .012 * weight + walk.turn) * strength);
-  if (strength < .01 || fr.frames <= 1) {
-    c.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, -fr.ax, -fr.ay, fr.sw, fr.sh);
-    c.restore(); return;
+  c.rotate((sway * .006 * weight + walk.turn) * strength);
+  c.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, -fr.ax, -fr.ay, fr.sw, fr.sh);
+  if (flashFrame && flash > 0) {
+    c.globalAlpha = alpha * Math.min(.18, flash);
+    c.drawImage(flashFrame, -fr.ax, -fr.ay, fr.sw, fr.sh);
   }
-  const hip = Math.floor(fr.ay * .7), start = Math.floor(fr.sw * .27), split = Math.floor(fr.sw * .5), end = Math.ceil(fr.sw * .73);
-  const region = (x, y, w, h) => {
-    if (w > 0 && h > 0) c.drawImage(fr.i, fr.sx + x, fr.sy + y, w, h, x - fr.ax, y - fr.ay, w, h);
-  };
-  region(0, hip, start, fr.sh - hip);
-  region(end, hip, fr.sw - end, fr.sh - hip);
-  for (let leg = 0; leg < 2; leg++) {
-    const x = leg ? split : start, width = leg ? end - split : split - start;
-    const swing = Math.sin(phase + leg * Math.PI), lift = Math.max(0, swing) * strength;
-    const pivotX = x + width * .5 - fr.ax, pivotY = hip - fr.ay;
-    c.save(); c.translate(pivotX, pivotY);
-    c.rotate(swing * .12 * strength / weight);
-    c.scale(1, 1 - lift * .12);
-    c.translate(-pivotX, -pivotY);
-    region(x, hip, width, fr.sh - hip);
-    c.restore();
-  }
-  region(0, 0, fr.sw, hip + 2);
   c.restore();
 }
