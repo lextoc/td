@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as kingdom from '../src/kingdom.js';
+import { STRIDES, newWalk, advanceWalk } from '../src/walking.js';
 import { ROADS, waveFor } from '../src/world.js';
 
 const source = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
 const section = (start, end) => source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start)));
 const noop = () => {};
 const sandbox = {
-  ...kingdom, selectedRoad: ROADS[1], endless: () => false, getWave: w => vm.runInContext(`WAVES[${w - 1}]`, sandbox), console, Math, performance, DEBUG: false, Q: new URLSearchParams(), TS: 128,
+  ...kingdom, STRIDES, newWalk, advanceWalk, selectedRoad: ROADS[1], endless: () => false, getWave: w => vm.runInContext(`WAVES[${w - 1}]`, sandbox), console, Math, performance, DEBUG: false, Q: new URLSearchParams(), TS: 128,
   BREATHER: 12, BOSS_BREATHER: 18, PLEN: 100000, PTS: [[0, 0]], SPARK: {}, M: {},
   play: noop, toast: noop, shake: noop, banner: noop, burst: noop, coinFx: noop,
   sprite: () => null, addFx: noop, sparks: noop, floatText: noop, deathDur: () => 1,

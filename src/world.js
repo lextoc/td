@@ -1,3 +1,4 @@
+import { STRIDES, newWalk, advanceWalk, drawWalking } from './walking.js';
 export const ROADS = [
   { id: 'easy', name: 'Willow Keep', difficulty: 'Easy', x: 360, y: 340, hp: .75, speed: .9, gold: 300, description: 'A gentle woodland road. Weaker, slower enemies and 300 starting gold.' },
   { id: 'normal', name: 'Crownwatch', difficulty: 'Normal', x: 1280, y: 280, hp: 1, speed: 1, gold: 250, description: 'The original ten-wave defense. 250 starting gold.' },
@@ -79,21 +80,37 @@ export function createWorld(parent, { images, terrain, knight, displayFont, skin
     const def = terrain.props[name], im = def && images[def.image];
     if (im) c.drawImage(im, x - def.anchor[0], y - def.anchor[1], ...def.size);
   }
-  let walkTime = 0, facing = 'down';
+  const walk = newWalk();
+  let vx = 0, vy = 0, wasKeyboard = false;
   function drawHero() {
     const im = images[knight.sheet]; if (!im) return;
-    const frame = Math.floor(walkTime * knight.fps) % knight.frames, row = knight.rows?.[facing] ?? 0;
-    c.drawImage(im, frame * knight.frameWidth, row * knight.frameHeight, knight.frameWidth, knight.frameHeight,
-      hero.x - knight.anchorPx[0], hero.y - knight.anchorPx[1], knight.frameWidth, knight.frameHeight);
+    const frame = Math.floor(walk.phase * knight.frames) % knight.frames, row = knight.rows?.[walk.facing] ?? 0;
+    c.save(); c.translate(hero.x, hero.y);
+    drawWalking(c, { i: im, sx: frame * knight.frameWidth, sy: row * knight.frameHeight,
+      sw: knight.frameWidth, sh: knight.frameHeight, ax: knight.anchorPx[0], ay: knight.anchorPx[1], frames: knight.frames }, walk,
+      { reduced: document.documentElement.classList.contains('reduce-motion') || matchMedia('(prefers-reduced-motion: reduce)').matches });
+    c.restore();
   }
   function frame(now) {
     if (!alive || !root.isConnected) { destroy(); return; }
     const dt = parent.querySelector('.modal') ? 0 : Math.min(.05, (now - (last || now)) / 1000); last = now;
-    let dx = (+keys.has('d') + +keys.has('arrowright')) - (+keys.has('a') + +keys.has('arrowleft')), dy = (+keys.has('s') + +keys.has('arrowdown')) - (+keys.has('w') + +keys.has('arrowup'));
-    if (dx || dy) { const n = Math.hypot(dx, dy); hero.x += dx / n * 300 * dt; hero.y += dy / n * 300 * dt; Object.assign(target, hero); }
-    else { dx = target.x - hero.x; dy = target.y - hero.y; const n = Math.hypot(dx, dy), step = Math.min(n, 360 * dt); if (n) { hero.x += dx / n * step; hero.y += dy / n * step; } }
-    if (Math.hypot(dx,dy) > 1) { walkTime += dt; facing = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'); } else walkTime = 0;
+    const oldX = hero.x, oldY = hero.y;
+    let dx = (+keys.has('d') + +keys.has('arrowright')) - (+keys.has('a') + +keys.has('arrowleft'));
+    let dy = (+keys.has('s') + +keys.has('arrowdown')) - (+keys.has('w') + +keys.has('arrowup'));
+    const keyboard = !!(dx || dy);
+    if (wasKeyboard && !keyboard) { target.x = Math.max(45, Math.min(1755, hero.x + vx / 12)); target.y = Math.max(120, Math.min(1350, hero.y + vy / 12)); }
+    wasKeyboard = keyboard;
+    if (!keyboard) { dx = target.x - hero.x; dy = target.y - hero.y; }
+    const distance = Math.hypot(dx,dy), maximum = keyboard ? 300 : 360;
+    const speed = keyboard ? maximum : Math.min(maximum, distance * 5);
+    const blend = 1 - Math.exp(-dt * 12);
+    vx += ((distance > .5 ? dx / distance * speed : 0) - vx) * blend;
+    vy += ((distance > .5 ? dy / distance * speed : 0) - vy) * blend;
+    if (!keyboard && distance < 1 && Math.hypot(vx,vy) < 5) { hero.x = target.x; hero.y = target.y; vx = vy = 0; }
+    else { hero.x += vx * dt; hero.y += vy * dt; }
     hero.x = Math.max(45, Math.min(1755, hero.x)); hero.y = Math.max(120, Math.min(1350, hero.y));
+    if (keyboard) Object.assign(target, hero);
+    advanceWalk(walk, hero.x - oldX, hero.y - oldY, dt, STRIDES.hero);
     near = ROADS.find(r => Math.hypot(hero.x - r.x, hero.y - r.y - 95) < 160) || null;
     if (previous !== (near?.id || '')) {
       previous = near?.id || ''; card.hidden = !near || travelOpen; title.textContent = near?.name || '';

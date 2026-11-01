@@ -1,3 +1,4 @@
+import { STRIDES, newWalk, advanceWalk, walkFrameTime, drawWalking } from './walking.js';
 import { ROADS, waveFor, createWorld } from './world.js';
 import manifest from './manifest.json';
 import './style.css';
@@ -378,7 +379,7 @@ function startWave() {
 function spawn(type) {
   const d = EN[type], hp = Math.floor((d.boss ? d.hp * (endless() ? 1 + Math.max(0, g.wave - 10) * .09 : 1) : d.hp * (1 + HP_SCALE * (g.wave - 1))) * selectedRoad.hp);
   if (d.boss) { play('boss_intro'); shake(12); banner(`The ${d.name}!`, `${hp} HP · costs ${d.lives} lives if it gets through`, 'boss', 'avatar_troll', 2800); }
-  g.enemies.push({ type, d, hp, max: hp, dist: 0, slow: 0, slowT: 0, x: PTS[0][0], y: PTS[0][1], walkT: Math.random(), face: 'right', flash: 0 });
+  g.enemies.push({ type, d, hp, max: hp, dist: 0, slow: 0, slowT: 0, x: PTS[0][0], y: PTS[0][1], walk: newWalk(Math.random()), walkT: Math.random(), face: 'right', flash: 0 });
 }
 function damage(e, n) {
   if (e.dead) return;
@@ -441,6 +442,7 @@ function step(dt) {
     e.dist += e.d.sp * selectedRoad.speed * TS * (1 - e.slow) * dt;
     const ox = e.x, oy = e.y; [e.x, e.y] = pathPos(e.dist);
     const fx = e.x - ox, fy = e.y - oy; if (Math.abs(fx) + Math.abs(fy) > .01) e.face = Math.abs(fx) >= Math.abs(fy) ? (fx < 0 ? 'left' : 'right') : (fy < 0 ? 'up' : 'down');
+    e.walk ||= newWalk(); advanceWalk(e.walk, fx, fy, dt, STRIDES[e.type], e.face);
     e.walkT += dt * e.d.sp * (1 - e.slow); if (e.flash > 0) e.flash -= dt;
     if (e.dist >= PLEN) {
       e.dead = e.leaked = true; g.remaining--; (g.leaks ??= {})[e.type] = (g.leaks[e.type] || 0) + 1;
@@ -1001,11 +1003,14 @@ function render() {
     }]);
   }
   for (const e of g.enemies) {
-    const fr = enemyFrame(e.type, 'walk', e.walkT * 2, e.face), proc = !fr || fr.frames <= 1, ph = Math.sin(e.walkT * 2 * Math.PI * 1.6);
+    const walk = e.walk || newWalk(), animation = sprite('enemy.' + e.type, 'walk');
+    const fr = enemyFrame(e.type, 'walk', animation ? walkFrameTime(walk, animation) : e.walkT, e.face);
     const hit = e.flash > 0 && sprite('enemy.' + e.type, 'hit'), hf = hit ? frameOf(hit, .12 - e.flash, e.face) : null;
-    items.push([w2s(e.x, e.y + 36)[1], () => { // walk fallback: bob + squash
-      at(e.x, e.y + 36 - (proc && !reduced ? Math.abs(ph) * 7 : 0));
-      if (hf) drawFrame(hf); else drawFrame(fr, proc ? 1 + .035 * ph : 1, proc ? 1 - .035 * ph : 1, 1, e.flash > 0 ? e.flash / .12 * .85 : 0);
+    items.push([w2s(e.x, e.y + 36)[1], () => {
+      at(e.x, e.y + 36);
+      if (hf) drawFrame(hf);
+      else if (e.flash > 0) drawFrame(fr, 1, 1, 1, e.flash / .12 * .85);
+      else drawWalking(ctx, fr, walk, { reduced, weight: e.d.boss ? 1.6 : e.type === 'goblin' ? .8 : 1 });
     }]);
   }
   for (const d of g.dying) {
