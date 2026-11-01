@@ -35,8 +35,15 @@ function mobileCSS() { // td-pack-2/ui/mobile skin for sheet + rail modes, gener
     st(sel, d, 'normal'); st(sel.split(',').map(x => x + ':active').join(','), d, 'pressed'); st(sel.split(',').map(x => x + ':disabled').join(','), d, 'disabled');
   }
   for (const [sel, d] of [['#ui.m-sheet .slot', U.slot64], ['#ui.m-rail .slot', U.slot48]]) {
-    st(sel, d, 'normal'); st(sel + ':active', d, 'pressed'); st(sel + '.locked', d, 'locked'); st(sel + '.sel', d, 'selected');
+    st(sel, d, 'normal'); st(sel + ':active', d, 'pressed'); st(sel + '.off', d, 'disabled'); st(sel + '.sel', d, 'selected');
   }
+  // TD-9a hud2 skin: bottom panel / rail, build-bar slots, Start wave, wave progress
+  st('#ui:not(.m-desktop) .bbar', U.hudPanel, '', 0.5); R.push(`#ui:not(.m-desktop) .bbar{border-image-source:url("${uiSrc(U.hudPanel)}")!important}`);
+  st('#ui:not(.m-desktop) .bbar .start', U.startWave, 'normal'); st('#ui:not(.m-desktop) .bbar .start:active', U.startWave, 'pressed'); st('#ui:not(.m-desktop) .bbar .start:disabled', U.startWave, 'disabled');
+  R.push(`#ui:not(.m-desktop) .bbar .barslot{border:0;background:url("${uiSrc(U.towerSlot, 'normal')}") center/100% 100% no-repeat}`);
+  R.push(`#ui:not(.m-desktop) .bbar .barslot.off{background-image:url("${uiSrc(U.towerSlot, 'disabled')}")}`);
+  R.push(`#ui:not(.m-desktop) .bbar .barslot.sel::before{content:'';position:absolute;left:50%;top:50%;width:${76 / 64 * 100}%;height:${76 / 64 * 100}%;transform:translate(-50%,-50%);background:url("${uiSrc(U.towerSlotSel)}") center/100% 100% no-repeat;pointer-events:none}`);
+  R.push(`#ui:not(.m-desktop) .wbar{${nine(U.waveFrame, '', 1)}background:none;box-sizing:border-box;padding:0}`, `#ui:not(.m-desktop) .wfill{${nine(U.waveFill, '', 1)}border-top-width:0;border-bottom-width:0;background:none;box-sizing:border-box;min-width:12px}`);
   R.push(`#ui:not(.m-desktop) .tipb{${nine(U.tooltip, '')}background:none;color:#2a1a12}`);
   const e = document.createElement('style'); e.id = 'mobile-skin'; e.textContent = R.join('\n'); document.head.appendChild(e);
 }
@@ -516,7 +523,7 @@ function startGame() {
 function slotBtn(parent, k, fn, cls = '') {
   const b = h('button', parent, 'slot ' + cls); b.onclick = fn;
   const name = `${TW[k].name} Tower (${ORDER.indexOf(k) + 1})`; b.title = name; b.setAttribute('aria-label', name);
-  img(b, 'icon_' + k, 'nopt'); h('span', b, 'hk', ORDER.indexOf(k) + 1); h('span', b, 'cost', TW[k].lv[0][0]);
+  { const ic = h('img', b, 'nopt ticon'); ic.src = uiSrc(M.ui.towerIcon, k); ic.alt = ''; ic.draggable = false; } h('span', b, 'hk', ORDER.indexOf(k) + 1); b.costEl = h('span', b, 'cost', TW[k].lv[0][0]);
   longPress(b, () => TW[k].name + ' Tower — ' + TW[k].lv.map((l, i) => `Lv${i + 1}: ${l[0]}g, Dmg ${l[1]}, ${l[2]}/s, Rng ${l[3]}`).join(' · '));
   b.k = k; return b;
 }
@@ -673,8 +680,13 @@ function refreshHUD(realDt) {
   const fw = (g.phase === 'wave' && g.total ? Math.round(100 * g.remaining / g.total) : 0) + '%'; if (H$.wfill._w !== fw) { H$.wfill._w = fw; H$.wfill.style.width = fw; }
   if (setIcon(H$.pause, g.paused ? 'play' : 'pause')) H$.pause.setAttribute('aria-label', g.paused ? 'Resume' : 'Pause');
   if (setIcon(H$.speed, g.speed === 1 ? 'speed1' : 'speed2')) H$.speed.setAttribute('aria-label', `Game speed ${g.speed}x`);
-  for (const b of H$.slots) setC(b, 'slot barslot' + (g.gold < TW[b.k].lv[0][0] ? ' locked' : g.slot === b.k ? ' sel' : ''));
-  if (g.radial != null && H$.cards) for (const b of H$.cards) setC(b, 'slot card' + (g.ghost?.type === b.k ? ' sel' : g.gold < TW[b.k].lv[0][0] ? ' locked' : ''));
+  for (const b of H$.slots) { // states never by colour alone: disabled = slashed "Need N" plate + desaturated icon; selected = 76px glow frame + lift + chevron
+    const c = TW[b.k].lv[0][0], off = g.gold < c, sel = g.slot === b.k;
+    setC(b, 'slot barslot' + (sel ? ' sel' : '') + (off ? ' off' : '')); setT(b.costEl, off ? `Need ${c - g.gold}` : c);
+    if (b._off !== off) { b._off = off; b.setAttribute('aria-disabled', off); b.setAttribute('aria-label', `${TW[b.k].name} Tower, ${off ? `need ${c - g.gold} more gold` : c + ' gold'}`); }
+    if (b._sel !== sel) { b._sel = sel; b.setAttribute('aria-pressed', sel); }
+  }
+  if (g.radial != null && H$.cards) for (const b of H$.cards) setC(b, 'slot card' + (g.ghost?.type === b.k ? ' sel' : '') + (g.gold < TW[b.k].lv[0][0] ? ' off' : ''));
   setC(H$.bar, 'bbar' + (g.phase === 'wave' ? ' inwave' : ''));
   if (L.pan !== L.panTo) { const d = L.panTo - L.pan; L.pan = Math.abs(d) < 1 ? L.panTo : L.pan + d * Math.min(1, realDt / .08); }
   setT(H$.start, g.phase === 'build' ? (L.mode === 'rail' ? `Start ${Math.ceil(g.countdown)}` : `Start wave (${Math.ceil(g.countdown)})`) : 'Start wave'); if (H$.start.disabled !== (g.phase !== 'build')) H$.start.disabled = g.phase !== 'build';

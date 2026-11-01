@@ -1,0 +1,44 @@
+{
+  "panel_bottom.png": {
+    "left": 28,
+    "top": 28,
+    "right": 28,
+    "bottom": 28
+  },
+  "panel_top.png": {
+    "left": 28,
+    "top": 28,
+    "right": 28,
+    "bottom": 28
+  },
+  "button_start_wave_normal.png": {
+    "left": 22,
+    "top": 18,
+    "right": 22,
+    "bottom": 18
+  },
+  "button_start_wave_pressed.png": {
+    "left": 22,
+    "top": 18,
+    "right": 22,
+    "bottom": 18
+  },
+  "button_start_wave_disabled.png": {
+    "left": 22,
+    "top": 18,
+    "right": 22,
+    "bottom": 18
+  },
+  "wave_progress_frame.png": {
+    "left": 12,
+    "top": 10,
+    "right": 12,
+    "bottom": 10
+  },
+  "wave_progress_fill.png": {
+    "left": 6,
+    "top": 0,
+    "right": 6,
+    "bottom": 0
+  }
+}

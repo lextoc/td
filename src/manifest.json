@@ -1657,6 +1657,146 @@
     2,
     3
    ]
+  },
+  "_hud2": "td-pack-2/ui/hud2 (TD-9a). slice [t,r,b,l] copied from hud2/nine_slice.json (1x px).",
+  "hudPanel": {
+   "src": "/assets/ui/hud2/panel_bottom.png",
+   "size": [
+    128,
+    150
+   ],
+   "slice": [
+    28,
+    28,
+    28,
+    28
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "hudPanelTop": {
+   "src": "/assets/ui/hud2/panel_top.png",
+   "slice": [
+    28,
+    28,
+    28,
+    28
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "startWave": {
+   "src": "/assets/ui/hud2/button_start_wave_{state}.png",
+   "size": [
+    120,
+    48
+   ],
+   "slice": [
+    18,
+    22,
+    18,
+    22
+   ],
+   "states": [
+    "normal",
+    "pressed",
+    "disabled"
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "waveFrame": {
+   "src": "/assets/ui/hud2/wave_progress_frame.png",
+   "size": [
+    160,
+    24
+   ],
+   "slice": [
+    10,
+    12,
+    10,
+    12
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "waveFill": {
+   "src": "/assets/ui/hud2/wave_progress_fill.png",
+   "size": [
+    48,
+    12
+   ],
+   "slice": [
+    0,
+    6,
+    0,
+    6
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "towerSlot": {
+   "src": "/assets/ui/hud2/tower_slot_{state}.png",
+   "size": [
+    64,
+    64
+   ],
+   "states": [
+    "normal",
+    "disabled",
+    "locked"
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "towerSlotSel": {
+   "src": "/assets/ui/hud2/tower_slot_selected.png",
+   "size": [
+    76,
+    76
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
+  },
+  "towerIcon": {
+   "src": "/assets/ui/hud2/icons/icon_tower_{state}.png",
+   "size": [
+    48,
+    48
+   ],
+   "states": [
+    "archer",
+    "cannon",
+    "frost",
+    "mage",
+    "tesla"
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ]
   }
  },
  "hiDpi96": {

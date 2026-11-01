@@ -141,6 +141,7 @@ await td(p, () => { window.nc = 0; document.addEventListener('click', () => wind
 const s0 = await td(p, () => td.spotS(0)), s1 = await td(p, () => td.spotS(2));
 await p.touchscreen.tap(s0[0], s0[1]); await p.waitForTimeout(40); await p.touchscreen.tap(s1[0], s1[1]); await p.waitForTimeout(150);
 ok(await td(p, () => window.nc) === 2 && await td(p, () => td.g.selSpot) === 2, 'two fast taps on spots = two game taps (2nd selects spot 2)');
+if (await td(p, () => td.g.radial != null || td.g.sel != null)) { await p.keyboard.press('Escape'); await p.waitForTimeout(200); } // close spot 2's sheet so it can't cover the bar
 const slot = await p.locator('.barslot').first().boundingBox(), sx = slot.x + slot.width / 2, sy = slot.y + slot.height / 2;
 await td(p, () => { td.g.slot = null; window.nc = 0; });
 await p.touchscreen.tap(sx, sy); await p.waitForTimeout(40); await p.touchscreen.tap(sx, sy); await p.waitForTimeout(150);
@@ -159,6 +160,34 @@ for (const map of ['landscape', 'portrait', 'square']) {
   ok(res.r === 'win' && !(res.leaks || {}).troll, `${map}: average plan wins (lives left ${res.lives}/20)`);
   ok(res.lives >= 8, `${map}: average plan keeps >= 8 lives (TD-9b fairness; was 'narrow <= 18' on the fixed maps)`);
   if (map === 'landscape') await p.screenshot({ path: OUT + 'win.png' });
+  await p.done();
+}
+
+// 2d. TD-9a panel polish (hud2): pinned panel/rail, icons in every slot, can't-afford state, tap targets >= 48, text >= 16
+for (const [w, h] of [[390, 844], [844, 390]]) for (const seed of [7, 4242, 90210]) {
+  p = await open(`?debug&seed=${seed}`, { width: w, height: h }, true, 3);
+  await td(p, () => td.startGame()); await p.waitForTimeout(400);
+  await td(p, () => { td.g.gold = 95; }); await p.waitForTimeout(150);
+  const r = await td(p, () => {
+    const R = e => e.getBoundingClientRect(), bar = document.querySelector('.bbar'), br = R(bar);
+    const slots = [...bar.querySelectorAll('.barslot')], start = bar.querySelector('.start');
+    const small = [...slots, start].map(R).filter(q => q.width < 48 || q.height < 48).length;
+    const fonts = [...bar.querySelectorAll('.cost,.start,.next')].filter(e => e.offsetParent).map(e => parseFloat(getComputedStyle(e).fontSize));
+    const icons = slots.map(b => b.querySelector('img.ticon')).filter(i => i && i.complete && i.naturalWidth > 0 && i.getBoundingClientRect().width >= 32).length;
+    const off = slots.filter(b => b.classList.contains('off')).map(b => [b.k, b.querySelector('.cost').textContent, b.getAttribute('aria-disabled')]);
+    return { mode: td.L.mode, bottom: br.bottom, right: br.right, vw: innerWidth, vh: innerHeight, small, minFont: Math.min(...fonts), icons, off, locked: document.querySelectorAll('.locked').length, art: getComputedStyle(bar).borderImageSource.includes('hud2') };
+  });
+  const pinned = r.mode === 'rail' ? r.right === r.vw && r.bottom === r.vh : r.bottom === r.vh;
+  ok(pinned && r.art, `${w}x${h} s${seed} ${r.mode}: hud2 panel pinned to the screen edge (no band) ${JSON.stringify([r.right, r.bottom])}`);
+  ok(r.icons === 5, `${w}x${h} s${seed}: tower icons visible in all 5 slots (${r.icons})`);
+  ok(r.small === 0 && r.minFont >= 16, `${w}x${h} s${seed}: panel tap targets >= 48px, text >= 16px (min ${r.minFont})`);
+  ok(r.off.length === 3 && r.off.every(([, t, a]) => /^Need \d+$/.test(t) && a === 'true') && r.locked === 0, `${w}x${h} s${seed}: can't-afford = disabled + "Need N" (no 'locked') ${JSON.stringify(r.off)}`);
+  if (seed === 7) { // pressed state: CSS transform while held
+    const sb = await p.locator('.bbar .barslot').first().boundingBox();
+    await p.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2); await p.mouse.down(); await p.waitForTimeout(120);
+    const tf = await td(p, () => getComputedStyle(document.querySelector('.bbar .barslot')).transform); await p.mouse.up();
+    ok(tf !== 'none', `${w}x${h}: pressed slot uses a CSS transform (${tf})`);
+  }
   await p.done();
 }
 

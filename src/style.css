@@ -28,7 +28,7 @@ button.b .ico{width:calc(28px*var(--u));height:calc(28px*var(--u));margin:-10px 
 button.hb{min-width:48px;width:max(48px,calc(54px*var(--u)));height:max(48px,calc(48px*var(--u)));padding:0}
 button.slot{position:relative;width:max(52px,calc(64px*var(--u)));height:max(52px,calc(64px*var(--u)));padding:0;border:0;background:var(--slot_normal) center/100% 100%;cursor:pointer;font:inherit;flex:none;touch-action:manipulation}
 button.slot.sel{background-image:var(--slot_selected)}
-button.slot.locked{background-image:var(--slot_locked)}
+button.slot.off{background-image:var(--slot_locked)}
 @media (hover:hover){button.slot:hover{outline:3px solid var(--focus);outline-offset:2px}}
 button.slot img{position:absolute;left:16%;top:14%;width:68%;height:68%}
 button.slot .hk{position:absolute;left:6%;top:2%;font-size:calc(12px*var(--u));color:var(--text);text-shadow:0 0 2px var(--outline),0 0 2px var(--outline)}
@@ -180,3 +180,31 @@ button.confirm{min-width:110px}
 #ui:not(.m-desktop) .sel-rail .acts button{font-size:16px}
 #ui:not(.m-desktop) button.slot .hk{display:none} /* hotkey digits are desktop-only; on touch they collided with the 16px cost */
 #ui.m-rail .bbar .start{white-space:normal;line-height:1.05;height:auto;min-height:56px}
+
+/* ---------- TD-9a panel polish (hud2 skin; SPEC-polish.md) ---------- */
+/* 1. pinned: the panel box sits on the screen edge; the 9-slice fills the safe-area inset, controls stay above it (no empty band) */
+#ui.m-sheet .bbar{left:0;right:0;bottom:0;width:auto;max-width:none;margin:0;gap:6px;padding:0 4px calc(2px + env(safe-area-inset-bottom));box-shadow:0 -10px 18px -6px rgba(20,10,0,.45)}
+#ui.m-rail .bbar{top:0;bottom:0;right:0;width:auto;gap:4px;padding:2px calc(2px + env(safe-area-inset-right)) calc(2px + env(safe-area-inset-bottom)) 2px;justify-content:center;box-shadow:-10px 0 18px -6px rgba(20,10,0,.45)}
+/* 2. icons in every slot: own layer above the slot art, cost plate below */
+#ui:not(.m-desktop) .bbar .barslot{width:64px;height:64px;overflow:visible}
+#ui.m-rail .bbar .barslot{display:block;width:64px;height:56px}
+#ui:not(.m-desktop) .bbar .barslot img.ticon{left:50%;top:4px;width:40px;height:40px;transform:translateX(-50%);z-index:1;filter:drop-shadow(1px 2px 0 rgba(0,0,0,.45))}
+#ui.m-rail .bbar .barslot img.ticon{width:36px;height:36px;top:2px}
+#ui:not(.m-desktop) .bbar .barslot .cost{left:0;right:0;bottom:1px;text-align:center;font-size:16px;line-height:18px;z-index:2;white-space:nowrap}
+/* 3. can't afford (no "locked": towers never unlock by wave): desaturated icon + slashed "Need N" plate, still tappable */
+button.slot.off img{filter:grayscale(.7) brightness(.8)}
+button.slot.off .cost{color:#e8dcc8;text-decoration:line-through 2px}
+#ui:not(.m-desktop) .bbar .barslot.off .cost{text-decoration:none;font-size:16px;letter-spacing:-.5px}
+/* selected: 76px glow frame (::before, centred), 4px lift, chevron notch */
+#ui:not(.m-desktop) .bbar .barslot.sel{transform:translateY(-4px)}
+#ui:not(.m-desktop) .bbar .barslot.sel img.ticon{transform:translateX(-50%) scale(1.06)}
+#ui.m-sheet .bbar .barslot.sel::after{content:'▲';position:absolute;left:0;right:0;bottom:-15px;text-align:center;font-size:12px;line-height:12px;color:var(--cost);text-shadow:0 0 2px #000}
+#ui.m-rail .bbar .barslot.sel::after{content:'◀';position:absolute;left:-13px;top:50%;margin-top:-6px;font-size:12px;line-height:12px;color:var(--cost);text-shadow:0 0 2px #000}
+/* 4. pressed: CSS transform + shadow, alongside the _pressed art where it exists (Start wave) */
+#ui:not(.m-desktop) .bbar .barslot,#ui:not(.m-desktop) .bbar .start{transition:transform 120ms cubic-bezier(.3,1.6,.5,1),filter 120ms;filter:drop-shadow(2px 3px 0 rgba(0,0,0,.45))}
+#ui:not(.m-desktop) .bbar .barslot:active,#ui:not(.m-desktop) .bbar .start:active:not(:disabled){transform:translate(2px,3px);filter:none;transition-duration:60ms}
+#ui:not(.m-desktop) .bbar .start{min-width:120px;min-height:48px;font-size:16px;line-height:1.1}
+#ui.m-rail .bbar .start{min-width:0;width:72px;min-height:56px}
+@media (prefers-reduced-motion:reduce){#ui .bbar .barslot,#ui .bbar .start{transition:none!important}#ui .bbar .barslot:active,#ui .bbar .start:active,#ui .bbar .barslot.sel{transform:none!important}}
+/* short phones (<=700px tall): 56px slots keep the grid tile >= 32px; still >= 48px tap targets */
+@media (max-height:700px){#ui.m-sheet .bbar .barslot{width:56px;height:56px}#ui.m-sheet .bbar .barslot img.ticon{width:34px;height:34px;top:2px}#ui.m-sheet .bbar .start{min-height:48px;height:48px}}
