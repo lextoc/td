@@ -50,6 +50,7 @@ export function genVariant(seed, id, tpl) {
     // spread along the road: split candidates (by path order) into 14 buckets, one random pick from each
     cand.sort((a, b) => a[2] - b[2] || a[3] - b[3]);
     const spots = []; for (let i = 0; i < NSPOTS; i++) { const a = Math.floor(i * cand.length / NSPOTS), b = Math.floor((i + 1) * cand.length / NSPOTS); spots.push(cand[a + Math.floor(R() * (b - a))]); }
+    if (spots.length !== NSPOTS || new Set(spots.map(([c, r]) => c + ',' + r)).size !== NSPOTS) continue;
     const [f, l] = [path[0], path.at(-1)], side = c => [c[0] === 0 ? -1 : C, c[1]];
     const busy = new Set([...on, ...spots.map(s => s[0] + ',' + s[1])]), roadRows = new Set([f[1], l[1]]);
     const near = ([c, r]) => [...busy].some(k => { const [x, y] = k.split(',').map(Number); return Math.abs(x - c) <= 1 && Math.abs(y - r) <= 1; });
