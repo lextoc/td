@@ -339,3 +339,9 @@ html.reduce-motion #ui .bbar .barslot,html.reduce-motion #ui .bbar .start{transi
 }
 /* TD-11d: menu ribbon tagline (live text, >=16px, sized to the ribbon body) */
 .tcard .trib.tag .rib-t{font-size:clamp(16px,calc(22px*var(--u)),26px);letter-spacing:.04em;padding:0 18%;white-space:nowrap;color:#fff4d6}
+/* TD-13: result screen owns the viewport */
+#ui.ended .bbar,#ui.ended .toasts,#ui.ended .selp,#ui.ended .sel-float,#ui.ended .banner{display:none!important}
+#ui.ended .hud,#ui.ended .crestbox{pointer-events:none!important}
+#ui.ended .endscr{z-index:1000;pointer-events:auto}
+#ui.ended .endscr .tcard{max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);overflow-y:auto}
+#ui.ended .endscr .row button{min-height:48px;min-width:48px}

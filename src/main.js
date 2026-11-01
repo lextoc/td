@@ -474,7 +474,7 @@ function undoSell() {
 }
 
 // ---------- UI: title ----------
-function clearUI() { ui.innerHTML = ''; H$ = {}; }
+function clearUI() { ui.innerHTML = ''; ui.classList.remove('ended'); H$ = {}; }
 function titleScreen() {
   screen = 'title'; g = null; clearUI(); modal = null; layout();
   img(ui, 'title_bg', 'nopt bgcover'); h('div', ui, 'dim nopt').style.opacity = .4;
@@ -692,6 +692,8 @@ function endGame(win) {
   g.over = true; closePanels(); setMusic(null); play(win ? 'stinger_win' : 'stinger_lose');
   const best = JSON.parse(localStorage.getItem('td.best') || 'null'), cur = { wave: g.wave, lives: win ? g.lives : 0 };
   if (!best || cur.wave > best.wave || (cur.wave === best.wave && cur.lives > best.lives)) localStorage.setItem('td.best', JSON.stringify(cur));
+  // TD-13: result card owns the screen - hide build bar/rail, make HUD + crest inert (restored by clearUI on Play again/Title)
+  ui.classList.add('ended'); ui.querySelectorAll('.bbar,.hud,.crestbox,.toasts,.selp,.sel-float,.banner').forEach(e => { e.inert = true; e.setAttribute('aria-hidden', 'true'); if (e.classList.contains('bbar')) e.hidden = true; });
   modal = mkModal(); modal.classList.add('endscr', win ? 'win' : 'lose'); const wrap = h('div', modal, 'tcard'); ribbon(wrap, win ? 'Victory!' : 'Defeat', 'trib'); const inn = panel(wrap, 'mpanel');
   h('div', inn, 'mtext center big2', win ? 'The road holds!' : `The enemy broke through on wave ${g.wave}.`);
   const s = Math.floor(g.stats.time), st = h('div', inn, 'estats');
@@ -895,7 +897,7 @@ addEventListener('keydown', ev => {
   else if (k === 'Escape') { if (g.radial != null || g.sel != null) { closePanels(); cv.focus(); } else if (g.slot) g.slot = null; else setPaused(true); }
 });
 
-if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, get SPOTS() { return SPOTS; }, onSlot, confirmBuild, get map() { return MAP.id; }, get seed() { return SEED; }, get PATHLEN() { return PLEN; }, get MAPS() { return MAPS; }, setMap, layout, get MAPOBJ() { return MAP; }, pathArt, L, spotS, s2w, w2s, spotAtXY };
+if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g() { return g; }, get screen() { return screen; }, get modal() { return modal?.result; }, build, upgrade, sell, undoSell, startWave, startGame, endGame, get SPOTS() { return SPOTS; }, onSlot, confirmBuild, get map() { return MAP.id; }, get seed() { return SEED; }, get PATHLEN() { return PLEN; }, get MAPS() { return MAPS; }, setMap, layout, get MAPOBJ() { return MAP; }, pathArt, L, spotS, s2w, w2s, spotAtXY };
 layout(); fontReady.then(titleScreen);
 
 mobileCSS();

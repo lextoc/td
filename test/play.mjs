@@ -260,6 +260,29 @@ for (const [w, h] of [[390, 844], [844, 390], [360, 640]]) {
   await p.done();
 }
 
+
+// TD-13: result screen hides build bar/rail, HUD inert, Play again + Title tappable; HUD back after Play again
+mkdirSync(new URL('../screenshots/td13/', import.meta.url).pathname, { recursive: true });
+for (const [w, h] of [[390, 844], [844, 390]]) for (const win of [false, true]) {
+  p = await open('?debug', { width: w, height: h }, true, 3);
+  await td(p, () => td.startGame()); await p.waitForTimeout(300);
+  await td(p, (v) => td.endGame(v), win); await p.waitForTimeout(1200);
+  const r = await td(p, () => {
+    const bar = document.querySelector('.bbar'), hud = document.querySelector('.hud');
+    const bs = [...document.querySelectorAll('.endscr .row button')].map(b => { const q = b.getBoundingClientRect(); const e = document.elementFromPoint(q.x + q.width / 2, q.y + q.height / 2);
+      return { t: b.textContent, in: q.top >= 0 && q.left >= 0 && q.bottom <= innerHeight && q.right <= innerWidth, big: q.height >= 48 && q.width >= 48, hit: e === b || b.contains(e) }; });
+    return { bs, barHidden: !bar || getComputedStyle(bar).display === 'none', hudInert: !hud || hud.inert };
+  });
+  const tag = `${w}x${h} ${win ? 'victory' : 'defeat'}`;
+  ok(r.bs.length === 2 && r.bs.every(b => b.in && b.big && b.hit), `${tag}: Play again + Title visible, >=48px, hit-testable ${JSON.stringify(r.bs)}`);
+  ok(r.barHidden && r.hudInert, `${tag}: bottom bar hidden, HUD inert`);
+  await p.screenshot({ path: new URL(`../screenshots/td13/${win ? 'victory' : 'defeat'}-${w}x${h}.png`, import.meta.url).pathname });
+  await p.getByRole('button', { name: 'Play again' }).tap(); await p.waitForTimeout(400);
+  const a = await td(p, () => { const bar = document.querySelector('.bbar'), hud = document.querySelector('.hud'); return { s: td.screen, bar: !!bar && getComputedStyle(bar).display !== 'none' && !bar.inert, hud: !!hud && !hud.inert, ended: document.getElementById('ui').classList.contains('ended') }; });
+  ok(a.s === 'game' && a.bar && a.hud && !a.ended, `${tag}: after Play again bar + HUD restored ${JSON.stringify(a)}`);
+  await p.done();
+}
+
 // 4. lose run
 p = await open('?debug&ff=20');
 await p.keyboard.press('Enter');
