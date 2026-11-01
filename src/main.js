@@ -1,6 +1,7 @@
 import manifest from './manifest.json';
 import './style.css';
 import { genMaps } from './mapgen.js';
+import { findCastle } from './scenery.js';
 
 const M = JSON.parse(JSON.stringify(manifest), (_key, value) =>
   typeof value === 'string' && value.startsWith('assets/') ? import.meta.env.BASE_URL + value : value);
@@ -242,6 +243,15 @@ function buildMapLayer() {
   const near = (c, r, f) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (f(c + dx, r + dy)) return true; return false; };
   for (const [key, name] of Object.entries(T.fixed || {})) { const [c, r] = key.split(',').map(Number); if (MT.props[name]) P.push([name, c * TS + 64, r * TS + 112]); }
   const fixed = new Set(Object.keys(T.fixed || {}));
+  const castleProp = MT.props.castle;
+  const castle = castleProp && IMG[castleProp.image] ? findCastle(MAP, {
+    left: (L.play.x - L.ox) / (k * TS), top: (L.play.y - L.oy) / (k * TS),
+    right: (L.play.x + L.play.w - L.ox) / (k * TS), bottom: (L.play.y + L.play.h - L.oy) / (k * TS)
+  }) : null;
+  if (castle) {
+    P.push(['castle', castle.c * TS + castleProp.anchor[0], castle.r * TS + castleProp.anchor[1]]);
+    for (let r = castle.r - 1; r <= castle.r + castle.height; r++) for (let c = castle.c - 1; c <= castle.c + castle.width; c++) fixed.add(c + ',' + r);
+  }
   for (const [c, r] of waterDraw) {
     if (!near(c, r, (a, b) => !WATER.has(a + ',' + b) && !offL(a, b)) && PR() < .5) P.push([pick(S.water), c * TS + 30 + PR() * 68, r * TS + 40 + PR() * 70, 1]);
   }
@@ -260,7 +270,7 @@ function buildMapLayer() {
   P.sort((a, b) => (b[3] || 0) - (a[3] || 0) || a[2] - b[2]); // flat decals first, then upright props back-to-front
   const p = propLayer.getContext('2d'); p.imageSmoothingQuality = 'high'; p.setTransform(d * k, 0, 0, d * k, d * L.ox, d * L.oy);
   const dim = T.edgeDim ?? 0;
-  for (const [name, x, y] of P) { const pr = MT.props[name]; const im = IMG[pr.image]; p.drawImage(im, x - pr.anchor[0], y - pr.anchor[1]); }
+  for (const [name, x, y] of P) { const pr = MT.props[name]; const im = IMG[pr.image]; p.drawImage(im, x - pr.anchor[0], y - pr.anchor[1], ...pr.size); }
   if (dim) { // outside the playable grid reads as scenery: soft vignette instead of per-cell boxes
     for (const L2 of [g, p]) { L2.save(); L2.globalCompositeOperation = 'source-atop'; L2.fillStyle = `rgba(20,30,10,${dim})`;
       L2.beginPath(); L2.rect(x0 * TS, y0 * TS, (x1 - x0 + 1) * TS, (y1 - y0 + 2) * TS); L2.rect(0, 0, COLS * TS, ROWS * TS); L2.fill('evenodd'); L2.restore(); }
@@ -904,3 +914,4 @@ if (DEBUG) window.td = { IMG, played, get actx() { return actx?.state; }, get g(
 layout(); fontReady.then(titleScreen);
 
 mobileCSS();
+

@@ -97,6 +97,7 @@
   "fx_lightning_hit": "assets/pack/fx/fx_lightning_hit_strip.png",
   "fx_magic_burst": "assets/pack/fx/fx_magic_burst_strip.png",
   "title_bg": "assets/logo/title_art.png",
+  "p_castle": "assets/terrain/props/castle.png",
   "icon_archer": "assets/weapons/01-arrow-ballista.png",
   "icon_cannon": "assets/weapons/02-iron-cannon.png",
   "icon_mage": "assets/weapons/08-arcane-orb-tower.png",
@@ -2183,6 +2184,11 @@
    }
   },
   "props": {
+   "castle": {
+    "image": "p_castle",
+    "anchor": [192, 302],
+    "size": [384, 302]
+   },
    "tree_oak_big": {
     "image": "p_tree_oak_big",
     "anchor": [
@@ -2452,3 +2458,4 @@
   ]
  }
 }
+
