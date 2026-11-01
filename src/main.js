@@ -49,6 +49,8 @@ function mobileCSS() { // td-pack-2/ui/mobile skin for sheet + rail modes, gener
   R.push(`#ui:not(.m-desktop) .wbar{${nine(U.waveFrame, '', 1)}background:none;box-sizing:border-box;padding:0}`, `#ui:not(.m-desktop) .wfill{${nine(U.waveFill, '', 1)}border-top-width:0;border-bottom-width:0;background:none;box-sizing:border-box;min-width:12px}`);
   st('#ui:not(.m-desktop) .hud', U.hudPanelTop, '', 0.5); R.push(`#ui:not(.m-desktop) .hud{background-image:none!important;border-radius:0}`);
   R.push(`#ui:not(.m-desktop) .tipb{${nine(U.tooltip, '')}background:none;color:#2a1a12}`);
+  // TD-11c: boss banner = hud2 ribbon_boss 9-slice (72px caps, body stretches); text stays live. z = banner height / 80px art height
+  if (U.ribbonBoss) R.push(`.banner.b-boss>img.rib-l,.banner.b-boss>img.rib-r,.banner.b-boss>.rib-b{display:none}.banner.b-boss{${nine(U.ribbonBoss, '', .8)}border-top-width:0;border-bottom-width:0;height:64px;box-sizing:border-box;background:none}`);
   const e = document.createElement('style'); e.id = 'mobile-skin'; e.textContent = R.join('\n'); document.head.appendChild(e);
 }
 function img(parent, key, cls = 'nopt') { const e = h('img', parent, cls); e.src = imgSrc(key); e.alt = ''; e.draggable = false; return e; }
@@ -72,13 +74,14 @@ const setC = (e, c) => { if (e._c !== c) { e._c = c; e.className = c; } };
 // ---------- settings ----------
 let muted = localStorage.getItem('td.muted') === '1';
 let reduced = localStorage.getItem('td.motion') ? localStorage.getItem('td.motion') === 'reduced' : matchMedia('(prefers-reduced-motion: reduce)').matches;
+const syncMotion = () => document.documentElement.classList.toggle('reduce-motion', reduced); syncMotion(); // TD-11c: in-game setting drives the same CSS as prefers-reduced-motion
 
 // ---------- assets ----------
 const IMG = {}, SND = {};
 let actx = null, master = null;
 const failed = new Set();
 function loadImage(k) {
-  return new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; failed.delete(k); res(); }; i.onerror = () => { failed.add(k); res(); }; i.src = M.images[k]; });
+  return new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; failed.delete(k); res(); }; i.onerror = () => { failed.add(k); res(); }; i.src = KX > 1 && M.imageScales?.[k]?.includes(KX) ? M.images[k].replace(/\.png$/, `@${KX}x.png`) : M.images[k]; });
 }
 async function loadSound(k) {
   try {
@@ -365,19 +368,19 @@ function damage(e, n) {
   if (e.hp <= 0) {
     play('enemy_death_' + (1 + Math.floor(Math.random() * 3)));
     e.dead = true; g.remaining--; g.stats.kills++; addGold(e.d.gold); g.dying.push({ type: e.type, x: e.x, y: e.y, face: e.face, t: 0 });
-    burst(e.x, e.y - 30, { n: e.d.boss ? 40 : 10, col: '#e8d9b8', sz: e.d.boss ? 14 : 9, v: e.d.boss ? 320 : 180, life: .5, gr: 200, kind: 'dust' }); coins(e.x, e.y - 40, e.d.boss ? 12 : 2); if (e.d.boss) shake(14);
-    if (!sprite('enemy.' + e.type, 'death')) addFx(M.sprites?.['enemy.' + e.type]?.deathFx || 'fx_death_puff', e.x, e.y); if (!reduced) addFx('fx_coin_pop', e.x, e.y - 40);
+    burst(e.x, e.y - 30, { n: e.d.boss ? 40 : 10, col: '#e8d9b8', sz: e.d.boss ? 14 : 9, v: e.d.boss ? 320 : 180, life: .5, gr: 200, kind: 'dust' }); coinFx(e.x, e.y - 40, e.d.boss); if (e.d.boss) shake(14);
+    if (!sprite('enemy.' + e.type, 'death')) addFx(M.sprites?.['enemy.' + e.type]?.deathFx || 'fx_death_puff', e.x, e.y); 
   }
 }
 const floatText = (x, y, s, col) => g.parts.push({ x, y, vx: 0, vy: -90, t: 0, life: .9, col, sz: 0, gr: 0, kind: 'text', s });
-function addFx(k, x, y) { g.fx.push({ k, x, y, t: 0 }); }
+function addFx(k, x, y, s = 1) { g.fx.push({ k, x, y, t: 0, s }); }
 function sparks(x, y, col, n = 7) { if (reduced) n = 3; for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = 120 + Math.random() * 220; g.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80, t: 0, life: .25 + Math.random() * .2, col }); } }
 // small particle system (world units): kind 'sq' spark, 'dust' soft puff, 'coin' gold disc, 'ring' expanding ring
 function burst(x, y, o = {}) { const n = reduced ? Math.ceil((o.n || 8) / 3) : (o.n || 8);
   for (let i = 0; i < n; i++) { const a = o.up ? -Math.PI * (.15 + .7 * Math.random()) : Math.random() * 6.283, v = (o.v || 150) * (.4 + .6 * Math.random());
     g.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: (o.life || .4) * (.7 + .5 * Math.random()), col: o.col || '#fff', sz: o.sz || 8, gr: o.gr ?? 600, kind: o.kind || 'sq' }); } }
 const ring = (x, y, col = '#ffe08a', r = 70, life = .35) => g.parts.push({ x, y, vx: 0, vy: 0, t: 0, life, col, sz: r, gr: 0, kind: 'ring' });
-const coins = (x, y, n) => burst(x, y, { n, col: '#ffd34d', sz: 10, v: 260, life: .7, gr: 900, kind: 'coin', up: true });
+const coinFx = (x, y, big) => { addFx('fx_coin_burst', x, y, big ? 1.8 : 1); if (big && !reduced) { addFx('fx_coin_burst', x - 70, y + 20); addFx('fx_coin_burst', x + 70, y + 20); } }; // TD-11c sprite coin burst
 let shakeT = 0, shakeA = 0; const shake = a => { if (!reduced) { shakeA = Math.max(shakeA, a); shakeT = .35; } };
 const SPARK = { archer: '#f2deb0', cannon: '#ffb347', mage: '#c58bff', frost: '#bfefff', tesla: '#fff27a' };
 function inRange(t, e) { const [cx, cy] = spotC(t.spot); return Math.hypot(e.x - cx, e.y - cy) <= t.st[3] * TS; }
@@ -451,7 +454,7 @@ function build(spot, type) {
   if (g.towers[spot] || g.over) return false;
   const c = TW[type].lv[0][0]; if (g.gold < c) { play('ui_error'); return false; }
   play('build'); g.gold -= c; g.towers[spot] = { spot, type, lv: 1, st: TW[type].lv[0], cd: 0, invested: c, pop: .35 };
-  { const [x, y] = spotC(spot); burst(x, y + 40, { n: 14, col: '#c9a878', sz: 12, v: 200, life: .55, gr: -40, kind: 'dust', up: true }); ring(x, y + 30, '#ffe08a', 80); floatText(x, y - 80, `-${c}`, '#ffb3a0'); }
+  { const [x, y] = spotC(spot); addFx('fx_build_dust', x, y + 40); ring(x, y + 30, '#ffe08a', 80); floatText(x, y - 80, `-${c}`, '#ffb3a0'); }
   closePanels(); return true;
 }
 function upgrade(spot) {
@@ -462,7 +465,7 @@ function upgrade(spot) {
 function sell(spot) {
   const t = g.towers[spot]; if (!t) return false;
   const r = Math.floor(t.invested * .7); g.gold += r; play('sell'); play('coin'); delete g.towers[spot];
-  { const [x, y] = spotC(spot); coins(x, y - 30, 10); burst(x, y + 40, { n: 10, col: '#c9a878', sz: 11, v: 160, life: .5, gr: -30, kind: 'dust', up: true }); floatText(x, y - 80, `+${r}`, '#ffd34d'); }
+  { const [x, y] = spotC(spot); coinFx(x, y - 30); addFx('fx_build_dust', x, y + 40, .8); floatText(x, y - 80, `+${r}`, '#ffd34d'); }
   g.undo = { t, r, until: performance.now() + 3000 }; closePanels(); toast(`Sold for ${r}`, 3000, null, ['Undo', undoSell]); buzz(); return true;
 }
 function undoSell() {
@@ -495,7 +498,7 @@ function titleButtons(box) {
   const pl = btn(box, 'Play', startGame);
   btn(box, 'How to play', howTo);
   const snd = btn(box, '', () => setMuted(!muted));
-  const mot = btn(box, '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); onSettings(); });
+  const mot = btn(box, '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); syncMotion(); onSettings(); });
   onSettings = () => { snd.textContent = muted ? 'Sound: Off' : 'Sound: On'; mot.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; };
   onSettings(); pl.focus();
 }
@@ -673,7 +676,7 @@ function setPaused(v) {
   h('div', inn, 'out display big', 'Paused');
   const col = h('div', inn, 'col');
   const res = btn(col, 'Resume', () => setPaused(false));
-  const snd = btn(col, '', () => setMuted(!muted)), mot = btn(col, '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); setLbl(); });
+  const snd = btn(col, '', () => setMuted(!muted)), mot = btn(col, '', () => { reduced = !reduced; localStorage.setItem('td.motion', reduced ? 'reduced' : 'full'); syncMotion(); setLbl(); });
   const setLbl = () => { snd.textContent = muted ? 'Sound: Off' : 'Sound: On'; mot.textContent = reduced ? 'Motion: Reduced' : 'Motion: Full'; }; setLbl();
   const prevS = onSettings; onSettings = () => { prevS(); setLbl(); };
   const confirm = (fn) => {
@@ -809,7 +812,7 @@ function render() {
     if (!fr) continue; at(x1, y1); ctx.rotate(Math.atan2(y2 - y1, x2 - x1));
     const len = Math.hypot(x2 - x1, y2 - y1); ctx.globalAlpha = Math.min(1, r.t / .06); ctx.drawImage(fr.i, fr.sx, fr.sy, fr.sw, fr.sh, 0, -fr.ay, len, fr.sh); ctx.globalAlpha = 1;
   }
-  for (const f of g.fx) { const a = ANIM[f.k] || { sheet: f.k, frameWidth: 128, frameHeight: 128, frames: 4, fps: 12, anchor: [.5, .5], loop: false }; at(f.x, f.y); drawFrame(frameOf(a, reduced ? .17 : f.t, 'right')); }
+  for (const f of g.fx) { const a = ANIM[f.k] || { sheet: f.k, frameWidth: 128, frameHeight: 128, frames: 4, fps: 12, anchor: [.5, .5], loop: false }; at(f.x, f.y); const fr = frameOf(a, reduced ? .17 : f.t, 'right'), z = fr && a.drawSize ? a.drawSize / fr.sw * (f.s || 1) : 1; drawFrame(fr, z, z); }
   for (const q of g.parts) { const k = q.kind || 'sq', a = 1 - q.t / q.life; at(q.x, q.y); ctx.globalAlpha = a;
     if (k === 'sq') { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = q.col; const z = q.sz || 8; ctx.fillRect(-z / 2, -z / 2, z, z); ctx.globalCompositeOperation = 'source-over'; }
     else if (k === 'dust') { ctx.globalAlpha = a * .7; ctx.fillStyle = q.col; ctx.beginPath(); ctx.arc(0, 0, q.sz * (1 + q.t / q.life), 0, 6.283); ctx.fill(); }

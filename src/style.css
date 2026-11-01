@@ -279,7 +279,7 @@ button.slot.off .cost{color:#e8dcc8;text-decoration:line-through 2px}
 .banner .rib-t{inset:0 0 auto 0;height:calc(50px*var(--u));font-size:24px}
 .banner .bsub{flex-basis:100%;text-align:center;font-size:18px;color:#fff4d6;margin-top:4px}
 .banner.b-clear .bsub{color:#c8f59a}
-.banner.b-boss{filter:drop-shadow(0 0 14px rgba(255,60,30,.75))}
+.banner.b-boss{filter:drop-shadow(0 4px 6px rgba(0,0,0,.55))} /* TD-11c: dedicated hud2 ribbon_boss art (9-slice, see mobileCSS) replaces the red glow */
 .banner.b-boss .rib-t{font-size:28px;color:#ffd6c8}
 .banner.b-boss .bsub{color:#ffb3a0;font-size:18px}
 .banner .bport{position:absolute;left:50%;top:-84px;width:96px;height:96px;transform:translateX(-50%);object-fit:contain;filter:drop-shadow(0 4px 0 rgba(0,0,0,.5))}
@@ -327,4 +327,7 @@ button.slot.off .cost{color:#e8dcc8;text-decoration:line-through 2px}
 @media (max-width:480px){.estats{grid-template-columns:1fr 1fr}}
 @media (orientation:landscape) and (max-height:500px){.modal.title .col{gap:4px;width:min(360px,60vw);margin:6px auto;flex-direction:row;flex-wrap:wrap;justify-content:center}.modal.title .col .b:nth-child(-n+2){width:100%}.modal.title .col .b{min-height:44px}.modal.title .col .b:first-child{min-height:48px;font-size:20px}.modal.title .col .b:nth-child(n+3){width:calc(50% - 2px);min-width:0;box-sizing:border-box;flex:0 0 calc(50% - 2px)}.modal.title .foot{margin-top:4px}.estats{margin:6px 0 2px}.estat{padding:4px}.estat img{width:28px;height:28px}}
 @media (prefers-reduced-motion:reduce){.modal.title *,.modal.howto *,.endscr *,.modal.title .tcard,.endscr .tcard{animation:none !important}}
+/* TD-11c: in-game 'Motion: Reduced' toggles html.reduce-motion -> same rules as prefers-reduced-motion */
+html.reduce-motion .modal.title *,html.reduce-motion .modal.howto *,html.reduce-motion .endscr *,html.reduce-motion .modal.title .tcard,html.reduce-motion .endscr .tcard{animation:none !important}
+html.reduce-motion #ui .bbar .barslot,html.reduce-motion #ui .bbar .start{transition:none!important}html.reduce-motion #ui .bbar .barslot:active,html.reduce-motion #ui .bbar .start:active,html.reduce-motion #ui .bbar .barslot.sel{transform:none!important}
 /* ===== end TD-11 ===== */

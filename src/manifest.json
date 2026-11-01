@@ -403,7 +403,9 @@
   "a3_impact_mage": "/assets/anim/fx/impact_mage.png",
   "a3_impact_frost": "/assets/anim/fx/impact_frost.png",
   "a3_impact_tesla": "/assets/anim/fx/impact_tesla.png",
-  "a3_impact_archer": "/assets/anim/fx/impact_archer.png"
+  "a3_impact_archer": "/assets/anim/fx/impact_archer.png",
+  "fx_build_dust": "/assets/ui/hud2/fx/fx_build_dust.png",
+  "fx_coin_burst": "/assets/ui/hud2/fx/fx_coin_burst.png"
  },
  "sounds": {
   "fire_archer": "/assets/sounds/01-arrow-ballista.ogg",
@@ -1358,6 +1360,30 @@
     64
    ],
    "loop": false
+  },
+  "fx_build_dust": {
+   "sheet": "fx_build_dust",
+   "frames": 8,
+   "fps": 12,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "loop": false,
+   "drawSize": 176,
+   "_note": "8 x 64x64 (1x) horizontal strip"
+  },
+  "fx_coin_burst": {
+   "sheet": "fx_coin_burst",
+   "frames": 8,
+   "fps": 12,
+   "anchor": [
+    0.5,
+    0.5
+   ],
+   "loop": false,
+   "drawSize": 144,
+   "_note": "8 x 64x64 (1x) horizontal strip"
   }
  },
  "sprites": {
@@ -1798,6 +1824,30 @@
     2,
     3
    ]
+  },
+  "ribbonBoss": {
+   "src": "/assets/ui/hud2/ribbon_boss_sheet.png",
+   "size": [
+    256,
+    80
+   ],
+   "slice": [
+    0,
+    72,
+    0,
+    72
+   ],
+   "scales": [
+    1,
+    2,
+    3
+   ],
+   "parts": {
+    "left": "/assets/ui/hud2/ribbon_boss_left.png",
+    "body": "/assets/ui/hud2/ribbon_boss_body.png",
+    "right": "/assets/ui/hud2/ribbon_boss_right.png"
+   },
+   "_note": "TD-11c boss banner ('Final wave!' + troll intro); slice from hud2/nine_slice.json"
   }
  },
  "hiDpi96": {
@@ -2387,5 +2437,18 @@
     "rock_medium"
    ]
   }
+ },
+ "imageScales": {
+  "_comment": "TD-11c: images with @2x/@3x variants; loader picks by devicePixelRatio (same rule as ui.scales). Anim frame size is derived from the loaded sheet; drawSize = world px.",
+  "fx_build_dust": [
+   1,
+   2,
+   3
+  ],
+  "fx_coin_burst": [
+   1,
+   2,
+   3
+  ]
  }
 }
