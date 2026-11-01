@@ -257,3 +257,6 @@ button.slot.off .cost{color:#e8dcc8;text-decoration:line-through 2px}
 .mpanel .row .b{min-height:48px;min-width:120px}
 @media (orientation:landscape) and (max-height:500px){.hsteps{grid-template-columns:1fr 1fr}.mpanel .htitle{font-size:18px;margin-bottom:4px}}
 .modal.howto{z-index:10} /* above the title logo/ribbon (z-index:1) */
+/* TD-10b: portrait slots evenly spaced and centred in the panel, same column box for every slot */
+#ui.m-sheet .bbar{justify-content:center}
+#ui .bbar .barslot .price,#ui .bbar .barslot .tname{align-self:stretch;text-align:center}

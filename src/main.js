@@ -42,6 +42,8 @@ function mobileCSS() { // td-pack-2/ui/mobile skin for sheet + rail modes, gener
   st('#ui:not(.m-desktop) .bbar .start', U.startWave, 'normal'); st('#ui:not(.m-desktop) .bbar .start:active', U.startWave, 'pressed'); st('#ui:not(.m-desktop) .bbar .start:disabled', U.startWave, 'disabled');
   // TD-10: icon tile uses the plain slot64 frame (towerSlot art has a built-in cost plate the icon would cover); cost sits below
   R.push(`#ui .bbar .barslot{border:0;background:none}#ui .bbar .barslot .tbox{background:url("${uiSrc(U.slot64, 'normal')}") center/100% 100% no-repeat}`);
+  // TD-10b: ONE frame per slot = the hud2 icon tile (.tbox); the per-state slot64 border-image on the button itself made a double frame on off/sel slots and shifted Archer
+  R.push('#ui .bbar button.slot.barslot,#ui .bbar button.slot.barslot.off,#ui .bbar button.slot.barslot.sel{border:0!important;border-image:none!important;background:none!important;box-sizing:border-box}');
   R.push(`#ui .bbar .barslot:active .tbox{background-image:url("${uiSrc(U.slot64, 'pressed')}")}#ui .bbar .barslot.off .tbox{background-image:url("${uiSrc(U.slot64, 'disabled')}")}`);
   // TD-10: no towerSlotSel overlay (its cost plate would sit on the icon); selection = slot64 'selected' frame round the whole slot
   R.push(`#ui:not(.m-desktop) .wbar{${nine(U.waveFrame, '', 1)}background:none;box-sizing:border-box;padding:0}`, `#ui:not(.m-desktop) .wfill{${nine(U.waveFill, '', 1)}border-top-width:0;border-bottom-width:0;background:none;box-sizing:border-box;min-width:12px}`);
