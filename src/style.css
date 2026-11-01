@@ -408,3 +408,9 @@ html.reduce-motion #ui .bbar .barslot,html.reduce-motion #ui .bbar .start{transi
 #ui.m-desktop .bbar button.start{width:74px}
 
 #ui .bbar .barslot img.ticon{left:1px!important;top:1px!important;width:calc(100% - 2px)!important;height:calc(100% - 2px)!important;object-fit:contain}
+
+#ui .bbar .countdown-border{position:absolute;left:0;right:0;top:-5px;height:3px;background:#211507;overflow:hidden;z-index:3;border-radius:2px}
+#ui .bbar .countdown-border[hidden]{display:none}
+#ui .bbar .countdown-fill{height:100%;width:100%;transform-origin:left center;background:linear-gradient(90deg,#ca8d25,#ffe49a);box-shadow:0 0 5px #ffd16a;will-change:transform}
+#ui .bbar .countdown-border.urgent .countdown-fill{background:#ffae69}
+#ui .bbar button.start{white-space:normal}

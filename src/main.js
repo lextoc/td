@@ -348,7 +348,7 @@ document.addEventListener('touchend', e => {
 let screen = 'title', g = null;
 function newGame() {
   g = {
-    gold: DEBUG && Q.get('gold') ? +Q.get('gold') : 250, lives: 20, wave: 0, phase: 'build', countdown: 15,
+    gold: DEBUG && Q.get('gold') ? +Q.get('gold') : 250, lives: 20, wave: 0, phase: 'build', countdown: 15, buildDuration: 15,
     queue: [], spawnT: 0, interval: 1, enemies: [], towers: {}, projs: [], fx: [], arcs: [], dying: [], parts: [],
     speed: 1, paused: false, over: false, stats: { kills: 0, gold: 0, time: 0 }, slot: null, radial: null, sel: null,
     focus: -1, hover: -1, undo: null, total: 0, remaining: 0, shownGold: 250, heartFlash: 0,
@@ -465,7 +465,7 @@ function step(dt) {
     const b = waveReward(g.wave, g.kingdom); addGold(b); play('coin');
     if (g.wave >= WAVES.length) return endGame(true);
     banner(`Wave ${g.wave} cleared`, `+${b} gold · ${isBoss(g.wave + 1) ? 'the Troll comes next!' : 'build up'}`, 'clear');
-    g.phase = 'build'; g.countdown = isBoss(g.wave + 1) ? BOSS_BREATHER : BREATHER;
+    g.phase = 'build'; g.countdown = g.buildDuration = isBoss(g.wave + 1) ? BOSS_BREATHER : BREATHER;
   }
 }
 
@@ -569,6 +569,11 @@ function startGame() {
   onSettings();
   // bottom bar (sheet + desktop modes) / right rail (rail mode): next wave + start
   const bar = H$.bar = h('div', ui, 'bbar'); bar.style.cssText = nine(M.ui.hudPanel, '', .22);
+  H$.countdown = h('div', bar, 'countdown-border nopt');
+  H$.countdown.setAttribute('role', 'progressbar'); H$.countdown.setAttribute('aria-label', 'Time until next wave');
+  H$.countdown.setAttribute('aria-valuemin', '0');
+  H$.countdownFill = h('div', H$.countdown, 'countdown-fill');
+
   H$.slots = ORDER.map(k => slotBtn(bar, k, () => onSlot(k), 'barslot'));
   H$.next = h('div', bar, 'next out');
   H$.start = btn(bar, 'Start wave', startWave, 'Start wave', 'start');
@@ -871,7 +876,21 @@ function refreshHUD(realDt) {
   refreshChip();
   setC(H$.bar, 'bbar' + (g.phase === 'wave' ? ' inwave' : '') + (g.radial != null ? ' picking' : ''));
   if (L.pan !== L.panTo) { const d = L.panTo - L.pan; L.pan = Math.abs(d) < 1 ? L.panTo : L.pan + d * Math.min(1, realDt / .08); }
-  { const cd = Math.ceil(g.countdown), bn = Math.floor(g.countdown); setT(H$.start, g.phase === 'build' ? `Start\n${cd}s +${bn}g` : (isBoss(g.wave) ? 'Boss\nwave!' : 'Wave\non')); setC(H$.start, 'b display start' + (g.phase === 'build' && cd <= 3 ? ' soon' : '')); } if (H$.start.disabled !== (g.phase !== 'build')) H$.start.disabled = g.phase !== 'build';
+  const building = g.phase === 'build', cd = Math.ceil(g.countdown);
+  setT(H$.start, building ? 'Start' : (isBoss(g.wave) ? 'Boss' : 'Wave on'));
+  setC(H$.start, 'b display start');
+  H$.start.title = building ? `Start wave now for +${Math.floor(g.countdown)} gold` : 'Wave in progress';
+  if (H$.start.disabled !== !building) H$.start.disabled = !building;
+  H$.countdown.hidden = !building;
+  const fraction = building ? Math.max(0, Math.min(1, g.countdown / g.buildDuration)) : 0;
+  H$.countdownFill.style.transform = `scaleX(${fraction})`;
+  H$.countdown.classList.toggle('urgent', building && cd <= 3);
+  if (H$.countdown._seconds !== cd || H$.countdown._duration !== g.buildDuration) {
+    H$.countdown._seconds = cd; H$.countdown._duration = g.buildDuration;
+    H$.countdown.setAttribute('aria-valuemax', g.buildDuration);
+    H$.countdown.setAttribute('aria-valuenow', Math.max(0, cd));
+    H$.countdown.setAttribute('aria-valuetext', `${Math.max(0, cd)} seconds until next wave`);
+  }
   const nw = g.wave + 1;
   if (g.phase === 'build') setT(H$.next, nw <= WAVES.length ? 'Next: ' + WAVES[nw - 1][0].map(([t, n]) => plural(n, EN[t].name)).join(', ') : ''); else setT(H$.next, `${g.remaining} left`);
   refreshUpgrade();
