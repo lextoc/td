@@ -208,3 +208,12 @@ button.slot.off .cost{color:#e8dcc8;text-decoration:line-through 2px}
 @media (prefers-reduced-motion:reduce){#ui .bbar .barslot,#ui .bbar .start{transition:none!important}#ui .bbar .barslot:active,#ui .bbar .start:active,#ui .bbar .barslot.sel{transform:none!important}}
 /* short phones (<=700px tall): 56px slots keep the grid tile >= 32px; still >= 48px tap targets */
 @media (max-height:700px){#ui.m-sheet .bbar .barslot{width:56px;height:56px}#ui.m-sheet .bbar .barslot img.ticon{width:34px;height:34px;top:2px}#ui.m-sheet .bbar .start{min-height:48px;height:48px}}
+
+.mpanel .htitle{margin:0 0 8px;text-align:center;font-size:22px;color:#ffe9b0}
+.hsteps{list-style:none;margin:0;padding:0;display:grid;gap:8px;color:#fff;font-size:16px;line-height:1.3}
+.hstep{display:flex;align-items:center;gap:12px}
+.hstep img{width:48px;height:48px;object-fit:contain;flex:none}
+.hstep p{margin:2px 0 0}
+.mpanel .row .b{min-height:48px;min-width:120px}
+@media (orientation:landscape) and (max-height:500px){.hsteps{grid-template-columns:1fr 1fr}.mpanel .htitle{font-size:18px;margin-bottom:4px}}
+.modal.howto{z-index:10} /* above the title logo/ribbon (z-index:1) */
