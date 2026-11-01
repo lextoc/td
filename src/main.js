@@ -43,7 +43,7 @@ function mobileCSS() { // td-pack-2/ui/mobile skin for sheet + rail modes, gener
     st(sel, d, 'normal'); st(sel + ':active', d, 'pressed'); st(sel + '.off', d, 'disabled'); st(sel + '.sel', d, 'selected');
   }
   // TD-9a hud2 skin: bottom panel / rail, build-bar slots, Start wave, wave progress
-  st('#ui:not(.m-desktop) .bbar', U.hudPanel, '', 0.5); R.push(`#ui:not(.m-desktop) .bbar{border-image-source:url("${uiSrc(U.hudPanel)}")!important}`);
+  st('#ui:not(.m-desktop) .bbar', U.hudPanel, '', .22); R.push(`#ui:not(.m-desktop) .bbar{border-image-source:url("${uiSrc(U.hudPanel)}")!important}`);
   st('#ui:not(.m-desktop) .bbar .start', U.startWave, 'normal'); st('#ui:not(.m-desktop) .bbar .start:active', U.startWave, 'pressed'); st('#ui:not(.m-desktop) .bbar .start:disabled', U.startWave, 'disabled');
   // TD-10: icon tile uses the plain slot64 frame (towerSlot art has a built-in cost plate the icon would cover); cost sits below
   R.push(`#ui .bbar .barslot{border:0;background:none}#ui .bbar .barslot .tbox{background:url("${uiSrc(U.slot64, 'normal')}") center/100% 100% no-repeat}`);
@@ -568,7 +568,7 @@ function startGame() {
   onSettings = () => { setIcon(H$.mute, muted ? 'sound_off' : 'sound_on'); H$.mute.setAttribute('aria-label', muted ? 'Unmute sound' : 'Mute sound'); };
   onSettings();
   // bottom bar (sheet + desktop modes) / right rail (rail mode): next wave + start
-  const bar = H$.bar = h('div', ui, 'bbar'); bar.style.borderImageSource = url('actionbar_body');
+  const bar = H$.bar = h('div', ui, 'bbar'); bar.style.cssText = nine(M.ui.hudPanel, '', .22);
   H$.slots = ORDER.map(k => slotBtn(bar, k, () => onSlot(k), 'barslot'));
   H$.next = h('div', bar, 'next out');
   H$.start = btn(bar, 'Start wave', startWave, 'Start wave', 'start');
@@ -871,7 +871,7 @@ function refreshHUD(realDt) {
   refreshChip();
   setC(H$.bar, 'bbar' + (g.phase === 'wave' ? ' inwave' : '') + (g.radial != null ? ' picking' : ''));
   if (L.pan !== L.panTo) { const d = L.panTo - L.pan; L.pan = Math.abs(d) < 1 ? L.panTo : L.pan + d * Math.min(1, realDt / .08); }
-  { const cd = Math.ceil(g.countdown), bn = Math.floor(g.countdown); setT(H$.start, g.phase === 'build' ? (L.mode === 'rail' ? `Go ${cd}s +${bn}g` : `Start wave ${cd}s · +${bn}g`) : (isBoss(g.wave) ? 'Boss wave!' : 'Wave on')); setC(H$.start, 'b display start' + (g.phase === 'build' && cd <= 3 ? ' soon' : '')); } if (H$.start.disabled !== (g.phase !== 'build')) H$.start.disabled = g.phase !== 'build';
+  { const cd = Math.ceil(g.countdown), bn = Math.floor(g.countdown); setT(H$.start, g.phase === 'build' ? `Start\n${cd}s +${bn}g` : (isBoss(g.wave) ? 'Boss\nwave!' : 'Wave\non')); setC(H$.start, 'b display start' + (g.phase === 'build' && cd <= 3 ? ' soon' : '')); } if (H$.start.disabled !== (g.phase !== 'build')) H$.start.disabled = g.phase !== 'build';
   const nw = g.wave + 1;
   if (g.phase === 'build') setT(H$.next, nw <= WAVES.length ? 'Next: ' + WAVES[nw - 1][0].map(([t, n]) => plural(n, EN[t].name)).join(', ') : ''); else setT(H$.next, `${g.remaining} left`);
   refreshUpgrade();
