@@ -9,7 +9,8 @@ A clean tower-defense foundation: one permanent woodland map, no towers or enemi
 
 ## Layout contract
 
-- The world and its HTML UI share a **1600 × 900 (16:9)** coordinate system.
+- The world and its HTML UI share a **900 × 1800 (1:2 portrait)** coordinate system.
+- iPhone safe areas are respected. Portrait composition prioritizes phone play; wider screens show decorative forest at the sides.
 - The entire view scales uniformly to fit the window. No cropping or responsive rearranging of the map/UI.
 - Unused screen space contains a muted, decorative forest. It is outside the playable world.
 - Terrain is seeded, generated once, and unchanged by resizing or reloading.
