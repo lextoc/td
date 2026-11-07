@@ -17,3 +17,9 @@ A clean tower-defense foundation: one permanent woodland map, no towers or enemi
 - Artwork is drawn locally with Canvas; no external assets, fonts, or runtime dependencies.
 
 The aspect ratio is an initial default, not a restriction on future design. Change the world dimensions and map/UI together if a different ratio is selected.
+
+## VPS hosting
+
+Live at https://td.alexanderclaes.com. Nginx serves `/var/www/td-static/current`, a symlink to an immutable release under `releases/`. The Nginx configuration is tracked in `deploy/nginx.conf`. TLS uses a dedicated automatically renewed Certbot certificate.
+
+Build with `npm run build`, copy `dist/` to a new release directory, and atomically switch `current`. GitHub Actions validates the build only; publishing to the VPS is a separate operation.
